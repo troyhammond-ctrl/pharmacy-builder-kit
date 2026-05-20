@@ -691,4 +691,80 @@ hermetic by default.
 
 ## Process
 
+The build runs in five sequential steps. Each step has a defined input, action, exit criteria, and failure mode. Complete each step fully before advancing to the next. Do not reorder steps.
+
+### Step 1 — Discover
+
+**Input:** The build folder path supplied by the operator; the Build Sheet (`*.docx`) inside it.
+
+**Action:** Scan the folder, resolve every file per §Inputs, and parse the Build Sheet plus any supporting docs (`Website content*.docx`, `QA *.docx`, `SEO_META_Tags_*.docx`). Extract every field listed in §Inputs › Build sheet fields to extract. Write a single `build/context.json` consolidating all parsed fields with `provenance` annotations. Mark absent fields `null` with a `nullReason` — never omit them silently.
+
+**Exit criteria:** `build/context.json` exists, is valid JSON, and contains every required field (present or `null` with a `nullReason`). No field is missing from the file.
+
+**Failure mode:** Hard fail if the Build Sheet is missing. Warn and continue if the logo is absent. Log every conflict between source documents to `/build/log.md`. Do not advance to Step 2 with a malformed context file.
+
+---
+
+### Step 2 — Scrape
+
+**Input:** `build/context.json` (from Step 1); specifically the `Website URL` field (the pharmacy's existing live site).
+
+**Action:** Run `tools/scrape.mjs` per §Scrape mechanics. Crawl the live site same-origin, depth ≤ 3, max 200 pages, 1 req/sec. Save raw HTML to `/scraped/raw/`, reader-mode markdown to `/scraped/text/`, assets to `/scraped/assets/`. Write `/scraped/manifest.json` per §Scrape › Manifest.
+
+**Exit criteria:** `/scraped/manifest.json` exists and records at least one page entry. All captured assets are present on disk. The scrape log entry in `/build/log.md` records a `scrape_status` value of either `"complete"` or `"unreachable"` — there is no silent fallback.
+
+**Failure mode:** If the site is unreachable (DNS failure, HTTP 403, blocked by `robots.txt`), log `scrape_status: "unreachable"` to `/build/log.md` and continue with build-sheet-only content. There is no silent fallback — log the failure explicitly so downstream steps know the scrape was skipped. Do not invent scraped content.
+
+---
+
+### Step 3 — Plan
+
+**Input:** `build/context.json` (Step 1); `/scraped/manifest.json` and `/scraped/text/*.md` corpus (Step 2, or build-sheet-only if scrape was unreachable).
+
+**Action:** Determine the full page set per §Required pages (always-built + conditional pages + qualifying scrape discoveries). Apply the scrape-discovery rule (≥ 150 substantive words, not a contact/hours rehash). For each page record: URL slug, page type, title, meta description, H1, primary CTA, schema types required, and source content references. Write the complete page manifest to `/build/page-plan.json`.
+
+**Exit criteria:** `/build/page-plan.json` exists, is valid JSON, and lists every required page (minimum eight always-built pages plus any applicable conditional pages). Each entry carries all required fields. No required page is absent.
+
+**Failure mode:** If required build-sheet fields (e.g., pharmacy name, address) are `null` in `build/context.json`, the corresponding page sections are omitted per §Section omission rule — not stubbed. Log any omitted sections to `/build/log.md`. Do not advance to Step 4 with a malformed plan file.
+
+---
+
+### Step 4 — Generate
+
+**Input:** `/build/page-plan.json` (Step 3); `build/context.json` (Step 1); `/scraped/` corpus (Step 2).
+
+**Action:** Scaffold the project and generate every page in the plan. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, and emit all required JSON-LD blocks per §Schema (JSON-LD). After all pages are written, generate the site-wide files:
+
+- `robots.txt` per §SEO › Site-wide files
+- `sitemap.xml` per §SEO › Site-wide files
+- `llms.txt` per §SEO › Site-wide files
+
+Wire the following into every page's `<head>` and layout exactly as sourced from `build/context.json`:
+
+- **head JS snippet** — verbatim from the build sheet `head JS` field; injected into `<head>` without modification
+- **GA ID** — the Google Analytics measurement ID from the build sheet; wired into the head JS or analytics snippet
+- **brand color** — the hex value from the build sheet; applied as the primary accent color
+- **Refill, Transfer, and Patient Portal CTAs** — wired to their respective portal URLs from the build sheet; present in the sticky header on every page per §Required sections
+
+**Exit criteria:** Every page in `/build/page-plan.json` has a corresponding generated HTML file. `robots.txt`, `sitemap.xml`, and `llms.txt` exist at the site root. All JSON-LD blocks are present and syntactically valid. No placeholder text appears in any output file.
+
+**Failure mode:** If a required field is absent from `build/context.json`, omit the corresponding section or element (see §Section omission rule). Log every omission to `/build/log.md`. Do not stub, invent, or hardcode values — no silent fallback.
+
+---
+
+### Step 5 — Validate
+
+**Input:** All generated HTML files; `build/context.json`; `/build/page-plan.json`.
+
+**Action:** Run the full validator suite against every generated file:
+
+1. **Content validation** — run `tools/validate-content.mjs` to check for banned phrasings (§Banned phrasings), PHI patterns (§PHI rules), and placeholder text. Any hit is a build failure.
+2. **Accessibility validation** — run `tools/validate-a11y.mjs` to check landmark presence, heading order, alt attributes, focus styles, contrast ratios, and keyboard reachability (§Accessibility).
+3. **Schema validation** — run `tools/validate-schema.mjs` to extract and validate all JSON-LD blocks per §Schema (JSON-LD). Any parse error or missing required property is a build failure.
+4. **Structural check** — verify every page in `/build/page-plan.json` has a corresponding HTML file; verify `robots.txt`, `sitemap.xml`, and `llms.txt` exist; verify no page is missing its required `<head>` elements.
+
+**Exit criteria:** All four validators exit with code `0`. No errors are reported. Every generated file passes the full suite.
+
+**Failure mode:** Any FAIL from any validator halts the build. Log the failing file path, validator name, and error detail to `/build/log.md`. Fix the violation and re-run the full validator suite from the top. Do not declare done until all validators exit `0` with zero errors — do not declare done with unresolved failures. There is no partial pass state.
+
 ## QA self-validation checklist
