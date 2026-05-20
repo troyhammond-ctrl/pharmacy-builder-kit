@@ -146,6 +146,61 @@ Every build must produce the following eight pages regardless of build-sheet fla
 
 ## Required sections
 
+### Every page
+
+Every page carries three structural zones in this order: top bar, sticky header, page body, footer.
+
+**Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: compute open/closed status in the browser using `Date.now()` against the pharmacy's local timezone derived from the build sheet `Hours:` field. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm. Use the `browser` timezone API (`Intl.DateTimeFormat`) to resolve local time; do not hard-code UTC offsets.
+
+**Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/`), primary nav with a services dropdown that lists every service topic, and three CTAs in this order: Refill, Transfer, Patient Portal. The header never wraps to a second row at desktop widths.
+
+**Footer** — contains: full address, phone, fax, email, business hours, social links (only if scraped or present in build sheet), NPI and license numbers (only if found in source material — never fabricated), copyright line, accessibility statement link, and a sitemap link. Omit any footer field whose value is not available in the build context.
+
+**FAQs** — every page includes a FAQ section near the bottom, scoped to the page's topic, drawn from the build sheet and scrape corpus.
+
+### Home only
+
+The home page body contains the following sections in order:
+
+1. **Hero** — full-width banner using the build-sheet tagline and a primary CTA (Refill or Transfer, whichever is primary per the build sheet). Background image sourced from scraped or provided assets; never use stock photography placeholders.
+2. **Services grid** — card grid for every service (Topics + List). Each card uses unique iconography: a single icon set, line style, approximately 24×24 px, single-stroke, and recolorable via `currentColor`. The same icon set is reused in the header services dropdown — never mix sets.
+3. **Hours of operation** — a semantic `<table>` listing every open day and its hours exactly as written in the build sheet.
+4. **Trust callouts** — brief value statements (locally owned, years in business, etc.). No comparative claims ("best," "only," "most").
+5. **Testimonials** — patient or customer quotes from the build sheet or scrape. Testimonials are omitted if no source material exists — never fabricated. Redact any PHI.
+6. **App download row** — only if `Requires Mobile App Page: Yes` is set in the build sheet. Include real Apple App Store and Google Play badges wired to the URLs from the build sheet.
+
+### Contact only
+
+The contact page body contains:
+
+- Clickable address (links to the Google Maps entry), clickable phone, fax, and email.
+- Map embed: construct the embed URL from the build sheet `Google Map URL` field. Render a "Get directions" link that opens the Google Maps URL in a new tab (`target="_blank" rel="noopener"`).
+- No contact form — the contact page does not collect any patient data.
+- Full hours of operation table (same as home).
+- FAQs scoped to location and access questions.
+
+### Per-service page
+
+Each per-service detail page (one per Topics entry) follows this structure:
+
+- **H1 = service name** — exactly as written in the build sheet Topics list; do not rename or abbreviate.
+- Verbatim build-sheet description copy followed by any additional detail sourced from the scrape.
+- For the Immunizations service: include a list labeled **Immunization Options** reproducing the build sheet `immunization options` field exactly — never extend or supplement this list with vaccines not explicitly listed in the build sheet.
+- A CTA appropriate to the service (e.g., "Schedule Now," "Request a Refill") — wire to the correct portal URL.
+- FAQs scoped to that service's topic.
+
+### Iconography rule
+
+Use one coherent icon set across the entire site. The same icon set appears in the services grid cards and the header services dropdown — never mix two icon families. All icons must be rendered at a consistent size (approximately 24×24 px), use a single-stroke line style, and accept brand-color theming via `currentColor` so they inherit the text color of their container without hardcoded fill values.
+
+### Section omission rule
+
+Any required section whose content cannot be sourced from the build sheet, supporting docs, or scrape corpus is omitted, not stubbed. Do not insert placeholder text. Specifically:
+
+- No "Lorem ipsum" — never use filler Latin text.
+- No "Coming soon" — never stub a section with a coming-soon notice.
+- No fake content of any kind. If the data isn't there, the section isn't there.
+
 ## Voice
 
 ## Banned phrasings
