@@ -261,7 +261,57 @@ The phrases below are forbidden in all generated HTML and copy. They are grouped
 
 ## Factual guardrails
 
+The following fields must never be fabricated. They may only appear in generated output when their value is present in the build sheet, supporting docs, or verified scrape corpus:
+
+- Hours
+- address (street, city, state, ZIP)
+- phone
+- fax
+- email
+- Staff names
+- credentials (degrees, certifications)
+- residencies
+- board certifications
+- awards
+- licenses
+- NPI
+- NCPDP
+- DEA
+- Services offered
+- Insurance plans accepted
+- Years in business
+- refill / transfer / portal URLs
+- Any legal claim
+
+If a field is not in the build sheet or scrape, the corresponding section is omitted, not stubbed.
+
 ## PHI rules
+
+The site must never collect, request, store, or output Protected Health Information (PHI).
+
+**Prohibited on public forms.** The following data types are explicitly forbidden from appearing in any public-facing form field:
+
+- Full names paired with medications or conditions
+- Date of birth (DOB)
+- Medical record numbers
+- Rx numbers
+- Diagnosis text
+- Insurance member IDs
+
+**Transfer page is CTA + outbound link only.** The `/transfer/` Transfer page must contain only a call-to-action button or link pointing to the pharmacy's transfer destination URL — no form fields requesting medication name, Rx number, DOB, or any other PHI. If the scraped source contains such a form, do not port it; replace with: "Call us at `<phone>` to transfer."
+
+**Contact page has no form.** The `/contact/` page must not collect any patient data. It displays address, phone, fax, email, map embed, and hours — nothing else.
+
+**PHI scanner.** As part of build validation, run a PHI scanner step that greps every generated HTML file for the following patterns and fails the build on any hit:
+
+- `name="dob"`
+- `name="rx_number"`
+- `name="member_id"`
+- `name="medication"`
+- `input[type=date]` inside a `<form>` element
+- Bare `<form>` elements whose `action` does not point to a fully qualified external URL
+
+**Clinical advice.** Never tell a patient what medication to take, when to stop taking a medication, or what a symptom means. For any emergency mention, use only the literal phrase: "Call 911 or go to the nearest emergency room." Nothing else is permitted as emergency copy. That phrase is the only allowed emergency copy block in any generated output.
 
 ## Accessibility (WCAG 2.2 AA)
 
