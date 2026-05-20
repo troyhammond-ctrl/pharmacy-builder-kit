@@ -451,6 +451,244 @@ Generate a markdown index following the llms.txt spec. Structure:
 
 ## Schema (JSON-LD)
 
+Emit one `<script type="application/ld+json">` block per schema object. All
+objects are scoped to the page they appear on. Do not merge unrelated types
+into a single block.
+
+### Every page
+
+Every page receives the following schemas.
+
+**`Pharmacy` (extends `LocalBusiness`)**
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": ["Pharmacy", "LocalBusiness"],
+  "name": "<Pharmacy Name>",
+  "image": "<Primary image URL>",
+  "logo": "<Logo URL>",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "<street>",
+    "addressLocality": "<city>",
+    "addressRegion": "<state>",
+    "postalCode": "<zip>",
+    "addressCountry": "US"
+  },
+  "telephone": "<phone>",
+  "email": "<email>",
+  "url": "<New Website URL>",
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      "opens": "09:00",
+      "closes": "18:00"
+    }
+  ],
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": "<lat>",
+    "longitude": "<lng>"
+  },
+  "sameAs": [
+    "<Facebook URL>",
+    "<Instagram URL>"
+  ]
+}
+```
+
+- `openingHoursSpecification` — parsed from build sheet hours; split into
+  separate `OpeningHoursSpecification` objects per day-group.
+- `geo` — include lat/lng **only** if already present in source HTML or
+  scraped metadata. **no external geocoding** — omit `geo` entirely if
+  coordinates are unavailable in the source.
+- `sameAs` — populated from social URLs captured during scrape only; never
+  fabricated.
+
+**`WebPage`**
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "<Page title>",
+  "description": "<Meta description>",
+  "url": "<Canonical URL>",
+  "inLanguage": "en",
+  "isPartOf": { "@id": "<New Website URL>" }
+}
+```
+
+**`BreadcrumbList`** — on all non-home pages:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "<New Website URL>/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "<Page name>",
+      "item": "<Page URL>"
+    }
+  ]
+}
+```
+
+**`FAQPage`** — on any page that contains FAQ content:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "<Question text>",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "<Answer text>"
+      }
+    }
+  ]
+}
+```
+
+FAQ Q&A must come from the build sheet, scrape, or QA doc — **never invented**.
+
+### Page-specific
+
+**Home page — `WebSite` with `SearchAction`**
+
+Include `WebSite` with a `SearchAction` only if real on-site search exists
+(i.e., the scraped or built site has a functioning search endpoint):
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "url": "<New Website URL>/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "<New Website URL>/search?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+```
+
+**Per-service pages — `Service`**
+
+Each service detail page gets a `Service` object:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "<Service name, e.g. Medication Synchronization>",
+  "provider": {
+    "@type": "Pharmacy",
+    "name": "<Pharmacy Name>",
+    "url": "<New Website URL>"
+  },
+  "areaServed": {
+    "@type": "City",
+    "name": "<City>"
+  },
+  "description": "<Service description from build sheet or scrape>"
+}
+```
+
+**Contact page — `ContactPoint` array**
+
+Emit an explicit `ContactPoint` array on the contact page:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "<Pharmacy Name>",
+  "contactPoint": [
+    {
+      "@type": "ContactPoint",
+      "telephone": "<phone>",
+      "contactType": "customer service",
+      "areaServed": "US",
+      "availableLanguage": "English"
+    }
+  ]
+}
+```
+
+**App page — `MobileApplication`**
+
+When an app page is present and real App Store / Google Play URLs are provided
+in the build sheet, emit `MobileApplication`:
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "MobileApplication",
+  "name": "<App name>",
+  "operatingSystem": "iOS, Android",
+  "applicationCategory": "HealthApplication",
+  "downloadUrl": "<App Store URL>",
+  "installUrl": "<Google Play URL>",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+```
+
+Use real App Store and Google Play URLs from the build sheet only — never
+fabricate store links.
+
+### Validation
+
+The skill ships a validator script at `tools/validate-schema.mjs`.
+
+**What it does:**
+
+1. Accepts one or more HTML file paths (or a glob) as arguments.
+2. Extracts every `<script type="application/ld+json">` block from each file.
+3. `JSON.parse()`s each block — exits with a non-zero code and prints the
+   file name + block index on any parse error.
+4. Validates required properties against an inline schema map (keyed by
+   `@type`) that the skill includes. Prints a diff of missing required
+   properties per object.
+5. Logs a summary: `N objects validated, M warnings, K errors`.
+
+**Online flag:**
+
+Posts to Google's Rich Results test only if `--online` flag is passed at
+runtime. Default behavior is **offline by default** — no network calls are
+made during a standard build or CI run.
+
+```bash
+# Offline (default)
+node tools/validate-schema.mjs dist/**/*.html
+
+# Online (posts to Rich Results API)
+node tools/validate-schema.mjs --online dist/**/*.html
+```
+
+The Rich Results test endpoint is `https://richresults.google.com/` — using
+it in CI requires the `--online` flag to be set explicitly so builds remain
+hermetic by default.
+
 ## Process
 
 ## QA self-validation checklist
