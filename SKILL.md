@@ -203,6 +203,13 @@ Any required section whose content cannot be sourced from the build sheet, suppo
 
 ## Voice
 
+- Write in plain language targeting an 8th-grade reading level. Target a Flesch-Kincaid readability score of ≥ 70.
+- Use short sentences. Active voice only — never passive construction when active is possible.
+- Second person throughout: address the patient as "you" ("you can get your refill"), never third person ("patients can…").
+- Warm but not casual. Friendly, not flippant. Professional tone that reassures; never breezy, sarcastic, or colloquial.
+- Practical: tell the patient what to do, where to go, and what to expect. Every paragraph should answer one of: what is this, how do I get it, what happens next.
+- local-color claims — community, neighborhood, family-owned, independent — are allowed only if backed by the build sheet or scrape corpus. Apply the same test to every local-color claim: if there is no source, omit the claim.
+
 ## Banned phrasings
 
 ## Factual guardrails
