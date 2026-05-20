@@ -78,6 +78,39 @@ Write a single `build/context.json` that consolidates every parsed field from th
 
 ## Scrape
 
+### Goal
+
+Mirror the build sheet's `Website URL` field — the pharmacy's existing live site — to a local `/scraped/` folder. The scrape is a **fact source**, not a **design source**. The new site doesn't have to look like the old one; it only borrows verifiable facts, copy, and assets from it.
+
+### Mechanics
+
+Write and run `tools/scrape.mjs`. The skill defines the contract; Replit Agent owns the implementation.
+
+- **Seed:** use the `Website URL` from the build sheet (the existing live site, not the staging URL).
+- **Crawl rules:** same-origin only; depth ≤ 3; max 200 pages; rate-limit to 1 req/sec; send a descriptive User-Agent string; respect the source site's `robots.txt`; skip `mailto:`, `tel:`, anchor-only links, and tracker or CDN hosts.
+- **Asset capture:** collect every `<img>`, `<source>`, `<video>`, and any `<a href>` pointing to `.pdf`, `.docx`, `.mp4`, `.webm`, or image extensions. Download each file to `/scraped/assets/` using collision-safe filenames that preserve the original name where possible.
+- **Content capture:** save each crawled page as raw HTML at `/scraped/raw/<slug>.html` and as a reader-mode markdown extraction at `/scraped/text/<slug>.md` for LLM consumption.
+
+### Manifest
+
+Write `/scraped/manifest.json` after the crawl completes. For each page record: URL, HTTP status, final URL (after redirects), `<title>`, first `<h1>`, word count, list of referenced assets, and list of outbound internal links. This file plus the `/scraped/text/*.md` corpus are the handoff to the Plan and Generate steps.
+
+### Failure handling
+
+If the source site is unreachable — DNS failure, HTTP 403, or blocked by `robots.txt` — log `scrape_status: "unreachable"` to `/build/log.md` and continue with build-sheet-only content. There is no silent fallback — log the failure explicitly so downstream steps know the scrape was skipped.
+
+### Allowed uses of scraped content
+
+- **Fact source:** claimed services, awards, staff names, hours phrasing — every claim is still subject to §Factual guardrails before use.
+- **PDFs** (forms, brochures) that may be linked from the new site when relevant.
+- **Storefront, team, and product images** with generated alt text.
+
+### Disallowed uses
+
+- **Overriding the build sheet on conflict.** Build sheet wins; log every conflict to `/build/log.md`.
+- **Carrying over PHI** (patient testimonials with full names paired with conditions, Rx numbers, DOB, etc.) — redact per §PHI rules.
+- **Carrying over marketing hyperbole, comparative claims, clinical claims, or unverified credentials** — filter per §Voice and §Factual guardrails.
+
 ## Required pages
 
 ## Required sections
