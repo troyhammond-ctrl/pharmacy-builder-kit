@@ -212,6 +212,53 @@ Any required section whose content cannot be sourced from the build sheet, suppo
 
 ## Banned phrasings
 
+The phrases below are forbidden in all generated HTML and copy. They are grouped by category for reference. The same list is the grep corpus that `tools/validate-content.mjs` runs against every output file.
+
+### Marketing hyperbole
+
+- revolutionary
+- world-class
+- best-in-class
+- cutting-edge
+- state-of-the-art
+- industry-leading
+- premier
+- award-winning
+- voted #1
+- top-rated
+
+### Clinical / comparative claims
+
+- proven to
+- cures
+- guarantees
+- safest
+- fastest
+- unlike CVS
+- you should take
+
+### Operational overreach
+
+- all insurance
+- any insurance
+- every insurance
+- 24-hour
+- 24/7
+- same-day delivery
+- free delivery
+
+### Credentials
+
+- board-certified
+- PharmD
+- RPh
+
+### Verification mechanism
+
+`tools/validate-content.mjs` scans all generated HTML after every build. If any banned phrase is found, the tool will fail build with a non-zero exit code and write line-numbered evidence to `/build/log.md` so the exact location of each violation is visible for review and correction.
+
+**Conditional unlock:** a banned phrase is allowed only when its exact wording appears verbatim in the build sheet or scrape (e.g., "FREE local delivery" when a build sheet contains that exact phrase). In that case the phrase may be reproduced faithfully in the corresponding page copy; the validator must be configured to accept the specific override when triggered by the build sheet or scrape source text.
+
 ## Factual guardrails
 
 ## PHI rules
