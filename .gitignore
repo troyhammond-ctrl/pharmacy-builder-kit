@@ -1,0 +1,9 @@
+.DS_Store
+~$*
+~$*.docx
+/build/
+/scraped/
+node_modules/
+*.swp
+.idea/
+.vscode/
