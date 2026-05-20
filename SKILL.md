@@ -64,7 +64,7 @@ Respect these flags exactly; do not activate conditional pages or features witho
 
 - **`Requires Mobile App Page: Yes`** → build the `/app/` page with real Apple App Store and Google Play badges wired to the URLs in the build sheet.
 - **Refill portal URL present** → wire the Refill CTA to that URL across the site.
-- **`Requires transfer form page`** → add `/transfer/` as a CTA-only page (outbound link; no PHI form).
+- **`Requires transfer form page`** → wire the `/transfer/` page's CTA / outbound link to the build-sheet transfer destination URL. The `/transfer/` page itself is always built (see §Required pages); this flag controls its wiring, never its existence. Still no PHI form.
 - **`pickup methods`** → use the listed methods to drive the copy on `/refill/`.
 - **`Additional locations: Yes`** → build a `/locations/` index page plus a `/locations/<slug>/` page per location.
 
@@ -119,14 +119,14 @@ Every build must produce the following eight pages regardless of build-sheet fla
 
 | URL | Page | Purpose |
 |---|---|---|
-| `/` | Home | Hero, tagline, primary CTAs (Refill, Transfer, Contact) |
-| `/about/` | About | Pharmacy story, staff, year opened, community roots |
-| `/contact/` | Contact | Address, hours, phone, map embed, contact form |
+| `/` | Home | Hero, tagline, services grid, hours, trust callouts, testimonials, CTAs |
+| `/about/` | About | Pharmacy story, year opened, tagline, independence |
+| `/contact/` | Contact | Address, hours, phone, fax, email, map embed, directions link |
 | `/services/` | Services index | Cards for every service (Topics deep + List shallow) |
 | `/services/<slug>/` | Per-service detail | One page per "Topics" entry; deep treatment with copy |
 | `/refill/` | Refill | Refill portal CTA wired to build-sheet URL; pickup methods copy |
 | `/transfer/` | Transfer | CTA + outbound link only — no PHI form |
-| `/faq/` | FAQ | Frequently asked questions drawn from build sheet and scrape |
+| `/faq/` | FAQ | Site-wide FAQs (expandable accordion); FAQPage JSON-LD schema |
 
 > **Transfer page is CTA + outbound link only — no PHI form.** Do not add any form that collects patient health information on the `/transfer/` page.
 
@@ -148,22 +148,22 @@ Every build must produce the following eight pages regardless of build-sheet fla
 
 ### Every page
 
-Every page carries three structural zones in this order: top bar, sticky header, page body, footer.
+Every page carries four structural zones in this order: top bar, sticky header, page body, footer.
 
-**Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: compute open/closed status in the browser using `Date.now()` against the pharmacy's local timezone derived from the build sheet `Hours:` field. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm. Use the `browser` timezone API (`Intl.DateTimeFormat`) to resolve local time; do not hard-code UTC offsets.
+**Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: compute open/closed status in the browser using `Date.now()` against the pharmacy's local timezone derived from the build sheet `Hours:` field. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm. Use `Intl.DateTimeFormat` to resolve local time from the user's browser; do not hard-code UTC offsets.
 
 **Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/`), primary nav with a services dropdown that lists every service topic, and three CTAs in this order: Refill, Transfer, Patient Portal. The header never wraps to a second row at desktop widths.
 
 **Footer** — contains: full address, phone, fax, email, business hours, social links (only if scraped or present in build sheet), NPI and license numbers (only if found in source material — never fabricated), copyright line, accessibility statement link, and a sitemap link. Omit any footer field whose value is not available in the build context.
 
-**FAQs** — every page includes a FAQ section near the bottom, scoped to the page's topic, drawn from the build sheet and scrape corpus.
+**FAQs** — every page includes a FAQ section near the bottom, scoped to the page's topic, drawn from the build sheet and scrape corpus. Include a `FAQPage` JSON-LD block for each FAQ section — see §Schema (JSON-LD).
 
 ### Home only
 
 The home page body contains the following sections in order:
 
 1. **Hero** — full-width banner using the build-sheet tagline and a primary CTA (Refill or Transfer, whichever is primary per the build sheet). Background image sourced from scraped or provided assets; never use stock photography placeholders.
-2. **Services grid** — card grid for every service (Topics + List). Each card uses unique iconography: a single icon set, line style, approximately 24×24 px, single-stroke, and recolorable via `currentColor`. The same icon set is reused in the header services dropdown — never mix sets.
+2. **Services grid** — card grid for every service (Topics + List). Each card has its own icon drawn from a single coherent icon set, line style, approximately 24×24 px, single-stroke, and recolorable via `currentColor`. The same icon set is reused in the header services dropdown — never mix sets.
 3. **Hours of operation** — a semantic `<table>` listing every open day and its hours exactly as written in the build sheet.
 4. **Trust callouts** — brief value statements (locally owned, years in business, etc.). No comparative claims ("best," "only," "most").
 5. **Testimonials** — patient or customer quotes from the build sheet or scrape. Testimonials are omitted if no source material exists — never fabricated. Redact any PHI.
@@ -174,7 +174,7 @@ The home page body contains the following sections in order:
 The contact page body contains:
 
 - Clickable address (links to the Google Maps entry), clickable phone, fax, and email.
-- Map embed: construct the embed URL from the build sheet `Google Map URL` field. Render a "Get directions" link that opens the Google Maps URL in a new tab (`target="_blank" rel="noopener"`).
+- Map embed: construct the embed URL from the build sheet `Google Map URL` field. Render a "Get directions" link that opens the Google Maps URL in a new tab (`target="_blank" rel="noopener noreferrer"`).
 - No contact form — the contact page does not collect any patient data.
 - Full hours of operation table (same as home).
 - FAQs scoped to location and access questions.
@@ -191,7 +191,7 @@ Each per-service detail page (one per Topics entry) follows this structure:
 
 ### Iconography rule
 
-Use one coherent icon set across the entire site. The same icon set appears in the services grid cards and the header services dropdown — never mix two icon families. All icons must be rendered at a consistent size (approximately 24×24 px), use a single-stroke line style, and accept brand-color theming via `currentColor` so they inherit the text color of their container without hardcoded fill values.
+Use one coherent icon set across the entire site (e.g., Lucide, Heroicons, or Phosphor). Pick one set and commit to it. The same icon set appears in the services grid cards and the header services dropdown — never mix two icon families. All icons must be rendered at a consistent size (approximately 24×24 px), use a single-stroke line style, and accept brand-color theming via `currentColor` so they inherit the text color of their container without hardcoded fill values.
 
 ### Section omission rule
 
