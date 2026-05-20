@@ -768,3 +768,54 @@ Wire the following into every page's `<head>` and layout exactly as sourced from
 **Failure mode:** Any FAIL from any validator halts the build. Log the failing file path, validator name, and error detail to `/build/log.md`. Fix the violation and re-run the full validator suite from the top. Do not declare done until all validators exit `0` with zero errors — do not declare done with unresolved failures. There is no partial pass state.
 
 ## QA self-validation checklist
+
+Before declaring the build complete, you must reproduce this checklist in `/build/log.md` with each box checked. Any unchecked box = build not done.
+
+```
+INPUTS
+[ ] Build sheet parsed; all enumerated fields captured or marked null
+[ ] Logo present and used; alt="<Pharmacy Name> logo"
+[ ] Supporting docs (content/QA/SEO meta) merged with provenance
+SCRAPE
+[ ] Source site mirrored or "unreachable" logged; no silent fallback
+[ ] Build sheet wins on conflict; conflicts logged
+PAGES
+[ ] Home, About, Contact, Services index, Per-service, Refill, Transfer, FAQ
+[ ] App page iff Requires Mobile App Page = Yes
+[ ] Locations iff Additional Locations = Yes
+[ ] No stubbed sections — anything unsourced is omitted
+HEADER / SITE-WIDE SECTIONS
+[ ] Sticky header with logo, services dropdown, 3 CTAs
+[ ] Top bar with address, phone, hours, open-now indicator (text + color)
+[ ] Footer with address/phone/hours, accessibility statement, sitemap link
+[ ] Services grid + dropdown use ONE icon set, brand-colored via currentColor
+A11Y (WCAG 2.2 AA)
+[ ] Single H1 per page; no skipped heading levels
+[ ] Landmarks, skip-link, visible focus, keyboard-operable dropdown
+[ ] All images have alt; decorative images have alt=""
+[ ] Contrast >= 4.5:1 body, >= 3:1 large; brand auto-darkened if needed
+SEO + SCHEMA
+[ ] Title, description, canonical, og:*, twitter:*, single H1 per page
+[ ] robots.txt, sitemap.xml, llms.txt generated
+[ ] Pharmacy/LocalBusiness JSON-LD on every page
+[ ] FAQPage JSON-LD wherever FAQs appear
+[ ] BreadcrumbList on non-home pages
+[ ] Service JSON-LD per service page
+[ ] MobileApplication JSON-LD only when app page exists
+[ ] Schema validates (parse + required props)
+CONTENT GUARDRAILS
+[ ] Banned phrasing scan: zero hits
+[ ] No non-sourced factual claims (services, insurance, awards, credentials)
+[ ] No PHI form fields; transfer page is CTA-only
+[ ] Emergency copy = exact mandated phrase, nowhere else
+[ ] No clinical advice patterns
+WIRING
+[ ] Refill CTA -> build sheet refill portal URL
+[ ] Transfer CTA -> build sheet transfer destination (no PHI form)
+[ ] Patient Portal CTA -> build sheet portal URL
+[ ] Head JS snippet present verbatim in <head>
+[ ] GA ID wired
+[ ] Brand color from build sheet drives accents
+RESULT
+[ ] All three validators PASS
+```
