@@ -571,48 +571,68 @@ FAQ Q&A must come from the build sheet, scrape, or QA doc — **never invented**
 
 ### Page-specific
 
-**Home page — `WebSite` with `SearchAction`**
+**No on-site search.** The generated site does not include search functionality. Do not emit `WebSite` JSON-LD with a `SearchAction`, do not implement a `/search` route, do not add a search input to the header or footer, and do not declare a search endpoint anywhere in markup or schema.
 
-Include `WebSite` with a `SearchAction` only if real on-site search exists
-(i.e., the scraped or built site has a functioning search endpoint):
+**Per-service pages — pick the right schema type per service**
 
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "url": "<New Website URL>/",
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "<New Website URL>/search?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  }
-}
-```
+Each per-service detail page gets a JSON-LD block. Choose the type based on what the service actually is — do not default everything to plain `Service`:
 
-**Per-service pages — `Service`**
+| Service kind | Schema type | Example services |
+|---|---|---|
+| Immunizations / vaccinations | `MedicalProcedure` with `procedureType: "Therapeutic"` and embedded `Vaccine` entries per vaccine listed in `immunization options` | "Immunizations," "Flu Shots," "COVID Vaccines" |
+| Clinical / therapeutic services | `MedicalTherapy` | "Medication Counseling," "Medication Synchronization," "Medication Therapy Management," "Medication Adherence" |
+| Compounding | `MedicalProcedure` with `procedureType: "Therapeutic"` | "Compounding," "Sterile Compounding" |
+| Health screenings (BP, A1C, etc.) | `MedicalTest` | "Blood Pressure Screening," "Diabetes Screening" |
+| Operational / non-clinical services | `Service` | "Delivery," "Refills," "Transfer," "OTC Products," "Insurance Support" |
 
-Each service detail page gets a `Service` object:
+Every chosen type — medical or operational — must include `provider` (the `Pharmacy` node), `name`, `description` (sourced from build sheet or scrape), and `areaServed` (the primary city). Medical types must additionally satisfy schema.org's required properties for that type. `MedicalProcedure` requires at minimum `name` and `procedureType`. `MedicalTherapy` requires `name`. `MedicalTest` requires `name` and `usedToDiagnose` if a target condition is in the source — otherwise omit `usedToDiagnose`.
+
+**Immunizations example** — when the build sheet lists `immunization options`, render the page with one `MedicalProcedure` block and one nested or sibling `Vaccine` block per listed vaccine:
 
 ```json
 {
   "@context": "https://schema.org",
-  "@type": "Service",
-  "serviceType": "<Service name, e.g. Medication Synchronization>",
+  "@type": "MedicalProcedure",
+  "name": "Immunizations",
+  "procedureType": "Therapeutic",
   "provider": {
     "@type": "Pharmacy",
     "name": "<Pharmacy Name>",
     "url": "<New Website URL>"
   },
-  "areaServed": {
-    "@type": "City",
-    "name": "<City>"
+  "areaServed": { "@type": "City", "name": "<City>" },
+  "description": "<Description from build sheet>"
+}
+```
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Vaccine",
+  "name": "<Vaccine name verbatim from build sheet, e.g. COVID-19, Flu, HPV, Shingles, Tdap or TD>"
+}
+```
+
+Never extend the list of vaccines beyond what the build sheet's `immunization options` field contains.
+
+**Operational service example** — when the page is non-clinical (e.g., delivery):
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "<Service name, e.g. Delivery>",
+  "provider": {
+    "@type": "Pharmacy",
+    "name": "<Pharmacy Name>",
+    "url": "<New Website URL>"
   },
+  "areaServed": { "@type": "City", "name": "<City>" },
   "description": "<Service description from build sheet or scrape>"
 }
 ```
+
+Connect every per-service node back to the pharmacy by listing all chosen service nodes in the Pharmacy node's `availableService` array on the home page and on the services index page.
 
 **Contact page — `ContactPoint` array**
 
@@ -805,7 +825,8 @@ SEO + SCHEMA
 [ ] Pharmacy/LocalBusiness JSON-LD on every page
 [ ] FAQPage JSON-LD wherever FAQs appear
 [ ] BreadcrumbList on non-home pages
-[ ] Service JSON-LD per service page
+[ ] Per-service JSON-LD: MedicalProcedure / MedicalTherapy / MedicalTest / Vaccine for clinical services; plain Service for operational ones
+[ ] No on-site search: no SearchAction in JSON-LD, no /search route, no search input in markup
 [ ] MobileApplication JSON-LD only when app page exists
 [ ] Schema validates (parse + required props)
 CONTENT GUARDRAILS
