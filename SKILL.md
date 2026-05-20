@@ -315,6 +315,48 @@ The site must never collect, request, store, or output Protected Health Informat
 
 ## Accessibility (WCAG 2.2 AA)
 
+Every generated site must satisfy WCAG 2.2 Level AA. The directives below are binding — Replit Agent must implement each one exactly.
+
+### Structural
+
+- Exactly one <h1> per page. The H1 is the page title; there is never more than one and never zero.
+- Heading levels never skip — never skip heading levels. H1 → H2 → H3 in strict order; do not jump from H1 to H3.
+- Use landmarks — wrap every page in `<header>`, `<nav>`, `<main>`, and `<footer>` landmark elements. Every page body lives inside `<main>`.
+- Skip-link — the first focusable element on every page is a skip link: `<a href="#main-content" class="skip-link">Skip to main content</a>`. It is visually hidden until focused.
+- Use real <button> and `<a>` elements for interactive controls. Never use <div onclick> or `<span onclick>` as a button substitute.
+- Tab order must match the visual reading order. Do not use positive `tabindex` values.
+- Esc closes any open dropdown or modal.
+- Enter and Space both activate `<button>` elements.
+- **Visible focus** — every interactive element shows a focus indicator that meets WCAG 2.2 Focus Appearance: a minimum `2px outline` in a color that achieves at least 3:1 contrast against the adjacent background.
+- Never set `outline: none` without providing an equivalent custom focus indicator that meets the 2px / 3:1 requirement.
+- A sticky header must not trap keyboard focus; Tab from the last header item moves into the page body, not back to the logo.
+
+### Content
+
+- Every `<img>` element must carry an `alt` attribute — always.
+- Substantive images use the object + context pattern, e.g., `alt="Pharmacist counseling a patient at the pharmacy counter"`.
+- Decorative images use `alt=""` (empty string, not omitted).
+- **Logo alt** text must be set to the exact pattern `<Pharmacy Name> logo` where `<Pharmacy Name>` comes from the build sheet `Pharmacy name` field. Example: `alt="Riverside Pharmacy logo"`.
+- Never use image-only text for substantive content (headings, CTAs, body copy must be real text, not images of text).
+- Icons must carry `aria-hidden="true"` and must always have an adjacent visible text label. Never use an icon alone as the only label for a control.
+- The root HTML element must include `lang="en"` at all times: `<html lang="en">`.
+
+### Contrast
+
+- Body text must achieve at minimum **4.5:1** contrast against its background.
+- Large text (≥ 18 pt / 24 px, or ≥ 14 pt / 18.67 px bold) and focus indicators must achieve at minimum **3:1** contrast against their background.
+- The pharmacy's brand color is used for accents, borders, and interactive highlights.
+- If the brand color cannot reach a 4.5:1 contrast ratio against white for body text, body text falls back to `#111111` and the brand color is used as accent-only. The skill **auto-darkens** the brand color for accent use until the color reaches at least 3:1 contrast against its background, preserving hue.
+- Run the contrast check script (`tools/validate-a11y.mjs`) as part of every build; it must pass before the site is considered complete.
+
+### Open-now indicator a11y
+
+- The open-now indicator in the top bar must convey status through a **text label AND color cue** — never by color-only.
+- Wrap the indicator in a live region: `aria-live="polite"` so screen readers announce status changes without requiring a page reload.
+- Examples of acceptable labels: "Open now" / "Closed" rendered in text alongside the color dot. The color dot alone is not sufficient.
+
+Run `tools/validate-a11y.mjs` after every build. The validator checks: landmark presence, heading order (no skipped levels), alt attribute presence on all images, focus styles (outline ≥ 2px), contrast computation for body and large text, and keyboard reachability of the services dropdown via Tab and Enter/Esc.
+
 ## SEO
 
 ## Schema (JSON-LD)
