@@ -4,3 +4,31 @@ description: Build a clean, modern, accessible, factually faithful pharmacy webs
 ---
 
 # Pharmacy Builder Skill
+
+> The Contract half (below) defines what the build must satisfy. The Process half at the end defines the order in which steps run. Every step in Process references a Contract section by name. Read the whole document before starting a build.
+
+## Inputs
+
+## Scrape
+
+## Required pages
+
+## Required sections
+
+## Voice
+
+## Banned phrasings
+
+## Factual guardrails
+
+## PHI rules
+
+## Accessibility (WCAG 2.2 AA)
+
+## SEO
+
+## Schema (JSON-LD)
+
+## Process
+
+## QA self-validation checklist
