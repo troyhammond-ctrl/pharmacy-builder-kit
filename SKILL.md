@@ -39,7 +39,9 @@ Extract every field listed below. Mark absent fields `null` with a `nullReason`.
 - **New Website URL** (staging/target; used as the canonical base URL)
 - **Google Map URL**
 - **refill portal** URL
-- **Transfer-form requirement** (yes/no)
+- **Patient Portal URL** (wired to the Patient Portal CTA across the site; if absent, the Patient Portal CTA is omitted from the sticky header per §Section omission rule — never invent or substitute another URL)
+- **Transfer-form requirement** (build-sheet key: `Requires transfer form page`; yes/no)
+- **Transfer destination URL** (the outbound URL the `/transfer/` CTA links to when `Requires transfer form page` is yes; never collect PHI on the new site itself)
 - **Requires Mobile App Page** flag (yes/no)
 - **GA ID** (Google Analytics measurement ID)
 - **head JS** snippet (verbatim; wired into `<head>` during generation)
@@ -150,7 +152,7 @@ Every build must produce the following eight pages regardless of build-sheet fla
 
 Every page carries four structural zones in this order: top bar, sticky header, page body, footer.
 
-**Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: compute open/closed status in the browser using `Date.now()` against the pharmacy's local timezone derived from the build sheet `Hours:` field. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm. Use `Intl.DateTimeFormat` to resolve local time from the user's browser; do not hard-code UTC offsets.
+**Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: derive the pharmacy's IANA timezone (e.g., `America/Los_Angeles`) from the build-sheet address (city and state) — not from the visitor's browser. Use `Intl.DateTimeFormat` with that explicit `timeZone` argument to convert `Date.now()` into the pharmacy's local time, then compare against the open hours parsed from the build-sheet `Hours:` field. Never use the visitor's browser timezone as a proxy for the pharmacy's time, and never hard-code UTC offsets. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm.
 
 **Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/`), primary nav with a services dropdown that lists every service topic, and three CTAs in this order: Refill, Transfer, Patient Portal. The header never wraps to a second row at desktop widths.
 
@@ -308,7 +310,9 @@ The site must never collect, request, store, or output Protected Health Informat
 - `name="rx_number"`
 - `name="member_id"`
 - `name="medication"`
-- `input[type=date]` inside a `<form>` element
+- `name="mrn"` (medical record number)
+- `name="diagnosis"`
+- Any `<input` whose `type` attribute equals `"date"` (or `'date'`) and that appears inside a `<form>` element — implement this check via an HTML parser, not a raw grep, because attribute-order and quote-style variations defeat literal matching
 - Bare `<form>` elements whose `action` does not point to a fully qualified external URL
 
 **Clinical advice.** Never tell a patient what medication to take, when to stop taking a medication, or what a symptom means. For any emergency mention, use only the literal phrase: "Call 911 or go to the nearest emergency room." Nothing else is permitted as emergency copy. That phrase is the only allowed emergency copy block in any generated output.
@@ -386,7 +390,7 @@ Include the full Open Graph set on every page:
 - `og:title` — same as `<title>` content
 - `og:description` — same as meta description
 - `og:url` — same as canonical href
-- `og:type` — `website` for the index/home page; use `business.business` where the platform supports it for other pages
+- `og:type` — `website` for every page (do not use the legacy `business.business` value; modern OG parsers ignore or flag it)
 - `og:image` — reference a 1200x630 PNG generated from the pharmacy logo, brand color background, and page title text
 
 **Twitter card tags**
@@ -711,7 +715,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 
 **Action:** Run `tools/scrape.mjs` per §Scrape mechanics. Crawl the live site same-origin, depth ≤ 3, max 200 pages, 1 req/sec. Save raw HTML to `/scraped/raw/`, reader-mode markdown to `/scraped/text/`, assets to `/scraped/assets/`. Write `/scraped/manifest.json` per §Scrape › Manifest.
 
-**Exit criteria:** `/scraped/manifest.json` exists and records at least one page entry. All captured assets are present on disk. The scrape log entry in `/build/log.md` records a `scrape_status` value of either `"complete"` or `"unreachable"` — there is no silent fallback.
+**Exit criteria:** `/scraped/manifest.json` exists and records EITHER at least one page entry with `scrape_status: "complete"` OR a top-level `scrape_status: "unreachable"` entry (with reason). All captured assets, if any, are present on disk. The scrape log entry in `/build/log.md` records the same `scrape_status` value — there is no silent fallback.
 
 **Failure mode:** If the site is unreachable (DNS failure, HTTP 403, blocked by `robots.txt`), log `scrape_status: "unreachable"` to `/build/log.md` and continue with build-sheet-only content. There is no silent fallback — log the failure explicitly so downstream steps know the scrape was skipped. Do not invent scraped content.
 
@@ -761,11 +765,12 @@ Wire the following into every page's `<head>` and layout exactly as sourced from
 1. **Content validation** — run `tools/validate-content.mjs` to check for banned phrasings (§Banned phrasings), PHI patterns (§PHI rules), and placeholder text. Any hit is a build failure.
 2. **Accessibility validation** — run `tools/validate-a11y.mjs` to check landmark presence, heading order, alt attributes, focus styles, contrast ratios, and keyboard reachability (§Accessibility).
 3. **Schema validation** — run `tools/validate-schema.mjs` to extract and validate all JSON-LD blocks per §Schema (JSON-LD). Any parse error or missing required property is a build failure.
-4. **Structural check** — verify every page in `/build/page-plan.json` has a corresponding HTML file; verify `robots.txt`, `sitemap.xml`, and `llms.txt` exist; verify no page is missing its required `<head>` elements.
 
-**Exit criteria:** All four validators exit with code `0`. No errors are reported. Every generated file passes the full suite.
+After the three validators pass, perform a final **structural verification** (not a script, but a mandatory manual check): every page in `/build/page-plan.json` has a corresponding HTML file; `robots.txt`, `sitemap.xml`, and `llms.txt` exist at the site root; no page is missing its required `<head>` elements; the closing QA checklist below is reproduced in `/build/log.md` with every box checked.
 
-**Failure mode:** Any FAIL from any validator halts the build. Log the failing file path, validator name, and error detail to `/build/log.md`. Fix the violation and re-run the full validator suite from the top. Do not declare done until all validators exit `0` with zero errors — do not declare done with unresolved failures. There is no partial pass state.
+**Exit criteria:** All three validators exit with code `0` AND the structural verification confirms every required artifact is present and the QA checklist is fully reproduced in `/build/log.md`.
+
+**Failure mode:** Any FAIL from any validator OR any failing structural check halts the build. Log the failing file path, validator name, and error detail to `/build/log.md`. Fix the violation and re-run the full validator suite from the top. Do not declare done until all three validators exit `0` with zero errors and the structural verification passes — do not declare done with unresolved failures. There is no partial pass state.
 
 ## QA self-validation checklist
 
