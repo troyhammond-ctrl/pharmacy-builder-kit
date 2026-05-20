@@ -5,7 +5,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-export SKILL_FILE="SKILL.md"
+export SKILL_FILE="$(pwd)/SKILL.md"
 shopt -s nullglob
 
 any=0

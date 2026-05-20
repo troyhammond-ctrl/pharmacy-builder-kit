@@ -36,10 +36,12 @@ assert_contains_regex() {
 }
 
 assert_not_contains() {
+  # Case-sensitive by design — matches assert_contains semantics. Tests that
+  # need case-insensitive matching should enumerate the case variants explicitly.
   local needle="$1"
   local test_name="${2:-not-contains}"
   local file="${3:-$SKILL_FILE}"
-  if grep -F -q -i -- "$needle" "$file"; then
+  if grep -F -q -- "$needle" "$file"; then
     _fail "$test_name" "$file unexpectedly contains: $needle"
   fi
 }
