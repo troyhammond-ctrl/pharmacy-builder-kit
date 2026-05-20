@@ -113,6 +113,37 @@ If the source site is unreachable — DNS failure, HTTP 403, or blocked by `robo
 
 ## Required pages
 
+### Always-built pages
+
+Every build must produce the following eight pages regardless of build-sheet flags:
+
+| URL | Page | Purpose |
+|---|---|---|
+| `/` | Home | Hero, tagline, primary CTAs (Refill, Transfer, Contact) |
+| `/about/` | About | Pharmacy story, staff, year opened, community roots |
+| `/contact/` | Contact | Address, hours, phone, map embed, contact form |
+| `/services/` | Services index | Cards for every service (Topics deep + List shallow) |
+| `/services/<slug>/` | Per-service detail | One page per "Topics" entry; deep treatment with copy |
+| `/refill/` | Refill | Refill portal CTA wired to build-sheet URL; pickup methods copy |
+| `/transfer/` | Transfer | CTA + outbound link only — no PHI form |
+| `/faq/` | FAQ | Frequently asked questions drawn from build sheet and scrape |
+
+> **Transfer page is CTA + outbound link only — no PHI form.** Do not add any form that collects patient health information on the `/transfer/` page.
+
+**Per-service page depth:**
+- **Topics entries** → deep treatment: full descriptive copy, benefits list, JSON-LD, internal links.
+- **List entries** → shallow card only on the `/services/` index; no dedicated detail page.
+
+### Conditionally built pages
+
+| Condition | Pages built |
+|---|---|
+| `Requires Mobile App Page: Yes` | `/app/` — includes real Apple App Store badge and Google Play badge (correct artwork per each store's brand guidelines) |
+| `Additional locations: Yes` | `/locations/` index + `/locations/<slug>/` per location |
+| Scrape-discovered page with ≥ 150 substantive words, not a contact/hours rehash | `/<slug>/` — one page per qualifying scrape discovery |
+
+**Scrape-discovery rule:** include a scraped page only when it contains at least 150 substantive words AND its content is not a rehash of the contact page or hours information. Drop it otherwise.
+
 ## Required sections
 
 ## Voice
