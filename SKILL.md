@@ -359,6 +359,96 @@ Run `tools/validate-a11y.mjs` after every build. The validator checks: landmark 
 
 ## SEO
 
+### Required `<head>` elements
+
+Every generated page must include the following `<head>` elements.
+
+**Title tag**
+
+Use the pattern `<page> | <Pharmacy Name>` for all pages except the home page, which uses `<Pharmacy Name> | <Tagline>`. Titles must be ≤ 60 chars — exceeding this length causes search engines to truncate. If the source document `SEO_META_Tags_*.docx` supplies per-page titles, use them verbatim and skip the pattern entirely.
+
+**Meta description**
+
+Include `<meta name="description">` with content between 140 and 160 chars. Shorter copy wastes snippet space; longer copy is truncated. Descriptions must accurately reflect the page body and contain at least one call to action.
+
+**Canonical URL**
+
+Include `<link rel="canonical" href="...">` on every page. The root of each canonical href comes from the build sheet field `New Website URL`. Append the relative path for interior pages (e.g. `New Website URL` + `/services/compounding`).
+
+**Heading hierarchy**
+
+Each page must have exactly one `<h1>`. The `<h1>` text should closely match the `<title>` value (minus the brand suffix). Subheadings follow the normal H2 → H3 hierarchy from the Accessibility section.
+
+**Open Graph tags**
+
+Include the full Open Graph set on every page:
+
+- `og:title` — same as `<title>` content
+- `og:description` — same as meta description
+- `og:url` — same as canonical href
+- `og:type` — `website` for the index/home page; use `business.business` where the platform supports it for other pages
+- `og:image` — reference a 1200x630 PNG generated from the pharmacy logo, brand color background, and page title text
+
+**Twitter card tags**
+
+Include the minimal Twitter card set:
+
+- `twitter:card` — set to `summary_large_image`
+- `twitter:title` — same as `og:title`
+- `twitter:description` — same as `og:description`
+- `twitter:image` — same 1200x630 asset used for `og:image`
+
+**Other required head tags**
+
+- `<meta charset="UTF-8">` — must appear first inside `<head>`
+- `<meta name="viewport" content="width=device-width, initial-scale=1">` — required for mobile rendering
+- `<meta name="theme-color" content="...">` — set to the pharmacy brand color (hex)
+
+### Site-wide files
+
+Generate the following files at the site root alongside `index.html`.
+
+**`robots.txt`**
+
+Allow all crawlers and reference the sitemap:
+
+```
+User-agent: *
+Allow: /
+Sitemap: <New Website URL>/sitemap.xml
+```
+
+**`sitemap.xml`**
+
+Include every generated page. Set `<lastmod>` to the build date (ISO 8601). Use the following priority scheme:
+
+- Home page: `1.0`
+- Top-level pages (e.g. `/services`, `/about`, `/contact`): `0.8`
+- Deep pages (e.g. `/services/compounding`): `0.6`
+
+**`llms.txt`**
+
+Generate a markdown index following the llms.txt spec. Structure:
+
+```
+# <Pharmacy Name>
+
+<One-sentence description of the pharmacy.>
+
+## Pages
+- [Home](<New Website URL>/)
+- [Services](<New Website URL>/services)
+- ...
+
+## Services
+- [<Service Name>](<New Website URL>/services/<slug>)
+- ...
+
+## About
+- [About Us](<New Website URL>/about)
+- [Contact](<New Website URL>/contact)
+```
+
 ## Schema (JSON-LD)
 
 ## Process
