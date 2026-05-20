@@ -24,7 +24,7 @@ We want one canonical, stack-agnostic skill that any Replit Agent (or Claude) ca
 ## Section 1 — Skeleton & input contract
 
 ### Skill file shape
-Single `SKILL.md` at the repo root. Standard skill frontmatter (`name`, `description`). The `description` includes trigger phrases: "build pharmacy site," "build pharmacy website," "pharmacy build sheet," "Longhorn template," plus specific Lumistry account names where relevant.
+Single `SKILL.md` at the repo root. Standard skill frontmatter (`name`, `description`). The `description` includes trigger phrases: "build pharmacy site," "build pharmacy website," "pharmacy build sheet," "Lumistry pharmacy build," and the known template labels (e.g., "Longhorn"). No per-pharmacy account names — the skill is generic across pharmacies.
 
 ### Invocation contract
 One input: a path to a build folder. Operator runs the skill with that path; the skill's first job is to scan and resolve the folder.
@@ -60,7 +60,7 @@ A single `build/context.json` consolidating every parsed field with explicit `nu
 ## Section 2 — Scrape step
 
 ### Goal
-Mirror the live source site (e.g., `amcarerxpharmacy.com`) to a local `/scraped/` folder so the build can pull facts, copy, and assets without re-fetching. The scrape is a **fact source**, not a **design source** — the new site doesn't have to look like the old one.
+Mirror the build sheet's `Website URL` (the pharmacy's existing live site) to a local `/scraped/` folder so the build can pull facts, copy, and assets without re-fetching. The scrape is a **fact source**, not a **design source** — the new site doesn't have to look like the old one.
 
 ### Mechanics
 The skill prescribes a Node script (`tools/scrape.mjs`) Replit Agent writes and runs. Skill specifies the contract; agent owns the implementation:
@@ -150,13 +150,13 @@ Any required section whose content can't be sourced is **omitted, not stubbed.**
 - Short sentences. Active voice. Second person ("you can…") not third.
 - Warm but not casual. Friendly, not flippant.
 - Practical: tell the patient what to do, where to go, what to expect.
-- Local references (community, neighborhood, family-owned, independent) **only if backed by build sheet or scrape.** "Independent" is OK for AmCare; "family-owned" is not — not in the data.
+- Local references (community, neighborhood, family-owned, independent) **only if backed by build sheet or scrape.** A claim like "independent" is fine only when the build sheet or scrape supports it; "family-owned" is not writable unless the source explicitly says so. Apply this same test to every local-color claim.
 
 ### Banned phrasings (explicit greppable list)
 - "revolutionary," "world-class," "best-in-class," "cutting-edge," "state-of-the-art," "industry-leading," "premier," "award-winning" (unless source confirms), "voted #1," "top-rated"
 - "proven to," "cures," "guarantees," "safest," "fastest"
 - "all insurance," "any insurance," "every insurance"
-- "24-hour," "24/7," "same-day delivery," "free delivery" (unless explicitly in source — AmCare's sheet does include "FREE local delivery")
+- "24-hour," "24/7," "same-day delivery," "free delivery" — banned unless the exact claim appears verbatim in the build sheet or scrape (e.g., a build sheet that explicitly says "FREE local delivery" unlocks that phrasing for that pharmacy only)
 - "board-certified," "PharmD," "RPh," and any other credential — unless found verbatim in source
 - Any sentence naming a competing pharmacy ("unlike CVS")
 - Any clinical-advice sentence pattern ("you should take…")
@@ -190,7 +190,7 @@ Hours, address, phone, fax, email, staff names, credentials, residencies, board 
 - Sticky header doesn't trap focus.
 
 **Content**
-- Every `<img>` has `alt`. Substantive images: object + context (e.g., "Pharmacist counseling a patient at the AmCare counter"). Decorative images: `alt=""`. Logo alt: `<Pharmacy Name> logo`.
+- Every `<img>` has `alt`. Substantive images: object + context (e.g., "Pharmacist counseling a patient at the pharmacy counter"). Decorative images: `alt=""`. Logo alt: `<Pharmacy Name> logo`.
 - No image-only text for substantive content.
 - Icons in services grid/dropdown: `aria-hidden="true"` (text label adjacent).
 - `<html lang="en">` always.
@@ -345,7 +345,7 @@ Replit Agent cannot declare the build complete without producing this filled-in 
 
 - The implementation of the three validator scripts (`validate-content.mjs`, `validate-a11y.mjs`, `validate-schema.mjs`). The skill prescribes their contract; implementation belongs to the plan that follows this spec.
 - The implementation of `tools/scrape.mjs`. Same — contract here, implementation in the plan.
-- A reference implementation of an output build (e.g., an actual AmCare site). Out of scope; the skill is the artifact.
+- A reference implementation of an output build (i.e., an actual generated pharmacy site). Out of scope; the skill is the artifact.
 - Deployment to Replit, GoDaddy, etc. Out of scope.
 - A UI for invoking the skill. Operator pastes/references the SKILL.md directly.
 
