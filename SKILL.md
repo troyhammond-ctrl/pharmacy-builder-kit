@@ -203,6 +203,29 @@ Any required section whose content cannot be sourced from the build sheet, suppo
 - No "Coming soon" — never stub a section with a coming-soon notice.
 - No fake content of any kind. If the data isn't there, the section isn't there.
 
+## Visual design
+
+The skill is stack-agnostic, but design quality is not optional. Pharmacies are healthcare businesses — the site must look professional, modern, and trustworthy.
+
+**Invoke the `ui-ux-pro-max` skill** for all visual design decisions: layout, typography, color application beyond the brand hex, spacing, shadows, gradients, hover states, animations, and component patterns. Pro-max is the design authority during Step 4 — Generate.
+
+**Style direction.** Clean, modern, professional. Recommended styles from pro-max's catalog: minimalism, flat design with subtle depth, or a restrained bento grid layout on the home page. Avoid brutalism, claymorphism, heavy neumorphism, and anything that reads "trendy" rather than "trustworthy."
+
+**Stack hint.** When pro-max needs a stack signal, default to React + Tailwind + shadcn/ui (via the shadcn MCP). If Replit Agent picks a different stack at scaffolding time, pro-max should align with that stack instead.
+
+**Constraints — pro-max output is filtered through these. On any conflict, the constraint wins.**
+
+- **Brand color is canonical.** The hex from the build sheet is the primary accent. Pro-max may propose complementary or neutral shades around it, but the brand hex itself is non-negotiable.
+- **Accessibility wins.** If a pro-max suggestion conflicts with §Accessibility (low-contrast hover, focus override < 3:1, color-only indicators), the §Accessibility rule wins. Never sacrifice WCAG 2.2 AA for visual flair.
+- **Voice wins.** If pro-max generates microcopy (button labels, empty states, error text), §Voice and §Banned phrasings still apply. Filter pro-max copy through `tools/validate-content.mjs` before declaring done.
+- **Required sections are non-negotiable.** Pro-max may not invent layouts that omit any of §Required sections or merge them in ways that hide critical content.
+- **Iconography.** Pro-max picks one icon set per §Required sections › Iconography rule; never mix sets even if pro-max suggests a hybrid.
+- **Typography.** Pro-max picks one of its font pairings. Body sans-serif must support the 8th-grade readability target in §Voice; display fonts must remain accessible at the sizes used. No ornamental display fonts for body content.
+- **Dark mode.** Ship dark mode only if pro-max can produce one without breaking WCAG AA contrast against the brand color. If brand color cannot satisfy AA on a dark background, ship light mode only and log the decision in `/build/log.md`. Never force a degraded dark mode.
+- **Responsive and mobile-first.** Pro-max output must pass on phone, tablet, and desktop breakpoints. The sticky header must not trap focus or scroll on mobile.
+
+**Review pass.** After Step 4 — Generate produces the first pass, invoke pro-max again with its `review` action against the rendered output and fold its findings into a second pass. Do not declare design done until the §Accessibility validator passes AND a pro-max review returns no critical issues.
+
 ## Voice
 
 - Write in plain language targeting an 8th-grade reading level. Target a Flesch-Kincaid readability score of ≥ 70.
@@ -757,7 +780,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 
 **Input:** `/build/page-plan.json` (Step 3); `build/context.json` (Step 1); `/scraped/` corpus (Step 2).
 
-**Action:** Scaffold the project and generate every page in the plan. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, and emit all required JSON-LD blocks per §Schema (JSON-LD). After all pages are written, generate the site-wide files:
+**Action:** Scaffold the project and generate every page in the plan. **Invoke the `ui-ux-pro-max` skill per §Visual design** to drive layout, typography, palette extension around the brand hex, components, spacing, and motion — pro-max output filtered through the §Visual design constraints. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, and emit all required JSON-LD blocks per §Schema (JSON-LD). After all pages are written, generate the site-wide files:
 
 - `robots.txt` per §SEO › Site-wide files
 - `sitemap.xml` per §SEO › Site-wide files
@@ -827,6 +850,7 @@ SEO + SCHEMA
 [ ] BreadcrumbList on non-home pages
 [ ] Per-service JSON-LD: MedicalProcedure / MedicalTherapy / MedicalTest / Vaccine for clinical services; plain Service for operational ones
 [ ] No on-site search: no SearchAction in JSON-LD, no /search route, no search input in markup
+[ ] ui-ux-pro-max invoked during Generate; review pass run; brand color preserved; no constraint conflicts unresolved
 [ ] MobileApplication JSON-LD only when app page exists
 [ ] Schema validates (parse + required props)
 CONTENT GUARDRAILS
