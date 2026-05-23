@@ -4,12 +4,15 @@ A single-file skill that instructs Replit Agent (or Claude) to build a clean, mo
 
 The deliverable is [`SKILL.md`](SKILL.md). The skill is stack-agnostic — the agent picks the framework.
 
+> 📘 **New here?** See [`docs/replit-quickstart.md`](docs/replit-quickstart.md) for the end-to-end Replit walkthrough: import → build folder → drive the five-step build → preview → deploy → troubleshoot.
+
 ## What's in this repo
 
 | Path | Purpose |
 |---|---|
 | `SKILL.md` | The skill itself. Paste this into Replit Agent as the system prompt, or commit it into your Replit project as a skill. |
 | `README.md` | This file. |
+| `docs/replit-quickstart.md` | Step-by-step Replit operator guide (import, build, deploy, troubleshoot). |
 | `docs/superpowers/specs/` | Design spec the SKILL.md was built from. Authoritative for any future revisions. |
 | `docs/superpowers/plans/` | Implementation plan used to build the SKILL.md. |
 | `tests/` | Shell-based structural tests that verify SKILL.md satisfies the spec. |
