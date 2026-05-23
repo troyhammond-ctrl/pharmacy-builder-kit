@@ -154,7 +154,7 @@ Every page carries four structural zones in this order: top bar, sticky header, 
 
 **Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: derive the pharmacy's IANA timezone (e.g., `America/Los_Angeles`) from the build-sheet address (city and state) — not from the visitor's browser. Use `Intl.DateTimeFormat` with that explicit `timeZone` argument to convert `Date.now()` into the pharmacy's local time, then compare against the open hours parsed from the build-sheet `Hours:` field. Never use the visitor's browser timezone as a proxy for the pharmacy's time, and never hard-code UTC offsets. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm.
 
-**Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/`), primary nav with a services dropdown that lists every service topic, and three CTAs in this order: Refill, Transfer, Patient Portal. The header never wraps to a second row at desktop widths.
+**Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/`), primary nav with a services dropdown that lists every service topic, and three CTAs in this order: Refill, Transfer, Patient Portal. The header never wraps to a second row at desktop widths. **The header collapses to a mobile menu below the `1024px` breakpoint (Tailwind `lg`) — see §Required sections › Mobile navigation for the drawer contract.**
 
 **Footer** — contains: full address, phone, fax, email, business hours, social links (only if scraped or present in build sheet), NPI and license numbers (only if found in source material — never fabricated), copyright line, accessibility statement link, and a sitemap link. Omit any footer field whose value is not available in the build context.
 
@@ -195,6 +195,28 @@ Each per-service detail page (one per Topics entry) follows this structure:
 
 Use one coherent icon set across the entire site (e.g., Lucide, Heroicons, or Phosphor). Pick one set and commit to it. The same icon set appears in the services grid cards and the header services dropdown — never mix two icon families. All icons must be rendered at a consistent size (approximately 24×24 px), use a single-stroke line style, and accept brand-color theming via `currentColor` so they inherit the text color of their container without hardcoded fill values.
 
+### Mobile navigation
+
+Below the `1024px` breakpoint (Tailwind `lg`), the sticky header collapses to a mobile menu. The header itself still shows: logo, click-to-call phone link, and the hamburger trigger — nothing else. The open-now indicator and full phone number remain in the top bar above the header so the "Call us" path is one tap from any screen.
+
+Drawer contract:
+
+- **Trigger.** A hamburger button (three lines, no labels needed visually but `aria-label="Open menu"`) in the top-right of the header. Tap target ≥ 44×44 CSS pixels. The button has `aria-expanded="true|false"` reflecting drawer state and `aria-controls` pointing to the drawer's `id`. When the drawer is open, change the label to `aria-label="Close menu"`.
+- **Drawer element.** `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing to the drawer's heading. Slides in from the right; full-width on phones (< 640px), 360–420px wide panel on small tablets.
+- **Backdrop.** Semi-transparent backdrop (≈ 50% opacity) behind the drawer. Tapping the backdrop closes the drawer. Backdrop has `aria-hidden="true"`.
+- **Contents, in this order:**
+  1. A close button (X icon, `aria-label="Close menu"`, ≥ 44×44 tap target) as the **first focusable element** in the drawer.
+  2. Logo and pharmacy name (linked to `/`).
+  3. Primary nav links. Each link is a full-width row, ≥ 48px tall, with 12px+ vertical padding for comfortable tap targets.
+  4. Services subnav as an **expandable disclosure group** (a heading "Services" + a button that toggles a nested list with `aria-expanded`) — NEVER a hover dropdown. Each service is a full-width row.
+  5. The three primary CTAs (Refill, Transfer, Patient Portal) styled as full-width filled buttons stacked vertically with 8–12px spacing between.
+  6. Click-to-call phone CTA: `<a href="tel:+1<10digits>">Call (XXX) XXX-XXXX</a>` styled as a full-width outlined button.
+  7. Hours summary block (today's hours, the open-now indicator state).
+- **Focus management.** When the drawer opens, focus moves to the close button. Tab cycles within the drawer (focus trap — implement with a sentinel or a focus-trap library). Esc closes the drawer and returns focus to the hamburger.
+- **Body scroll lock.** When the drawer is open, set `overflow: hidden` on `<body>` and `<html>` so background content doesn't scroll. Also handle iOS rubber-band by setting `position: fixed; width: 100%; top: -<scrollY>px` then restoring on close. Restore the previous scroll position on close.
+- **Animation.** Slide-in 200ms `ease-out`, backdrop fade 150ms. If `prefers-reduced-motion: reduce` is set, skip the animation and toggle visibility instantly.
+- **Anti-patterns banned.** No `:hover`-only interactions (touch devices have no hover). No nested multi-level dropdowns. No drawer that doesn't trap focus. No drawer that lets background scroll. No drawer without a backdrop. No drawer that doesn't close on Esc or on backdrop tap.
+
 ### Section omission rule
 
 Any required section whose content cannot be sourced from the build sheet, supporting docs, or scrape corpus is omitted, not stubbed. Do not insert placeholder text. Specifically:
@@ -202,6 +224,86 @@ Any required section whose content cannot be sourced from the build sheet, suppo
 - No "Lorem ipsum" — never use filler Latin text.
 - No "Coming soon" — never stub a section with a coming-soon notice.
 - No fake content of any kind. If the data isn't there, the section isn't there.
+
+## Conversion
+
+This is a high-trust, local-action site. Patients convert by calling, walking in, refilling, or transferring — rarely by submitting forms (which we don't collect anyway). The design must make those actions immediate and obvious on every screen size.
+
+### Primary actions
+
+The patient actions, in priority order:
+
+1. **Call** — a `tel:` link with the visible phone number in the top bar, in the mobile menu drawer, in the footer, and on the contact page. On mobile, calling outranks every other action.
+2. **Refill** — primary CTA in the home hero, primary CTA on every service page where refilling is in scope, and one of the three sticky-header CTAs site-wide.
+3. **Transfer** — secondary CTA in the home hero and present in the sticky header. Outbound link only (no PHI form per §PHI rules).
+4. **Patient Portal** — present in the sticky header but visually secondary; useful for returning patients, not for first-time acquisition.
+
+### Above-the-fold (mobile and desktop)
+
+A first-time visitor on a phone must see **without scrolling**: pharmacy name, tagline, one primary CTA (Refill), a click-to-call link with the visible phone number, and the "Open now" / "Closed" indicator. If any of these are missing above the fold, the hero is failing — revise.
+
+### Sticky bottom CTA bar (mobile only)
+
+On screens narrower than `1024px`, render a sticky bottom bar 60–72px tall containing **two equal-width buttons**: "Call" (`tel:` link to the build-sheet phone) and "Refill" (links to the refill portal URL). Rules:
+
+- Appears once the user has scrolled past the hero (use `IntersectionObserver` watching the hero element).
+- Hidden when the mobile menu drawer is open.
+- Respects `safe-area-inset-bottom` on iOS (use `env(safe-area-inset-bottom)` in CSS padding).
+- Backdrop-blurred or solid background with sufficient contrast against the page content beneath.
+- Each button is ≥ 44×44 tap target with a clear icon + label.
+- Hidden entirely on desktop (≥ 1024px) — desktop users have the sticky header.
+
+### Trust signals (above the fold or in the first viewport of scroll)
+
+Render all of these where the visitor can see them without effort:
+
+- "Open now" / "Closed" indicator (live, computed per §Required sections › Top bar).
+- Visible phone number with `tel:` link.
+- Address line linked to the Google Maps URL ("Get directions").
+- Independence / years-in-business callout — only if sourced from build sheet (e.g., "Independent pharmacy serving the community since 2022"). Omit if not sourced.
+- One testimonial or rating callout if real review data exists in build sheet or scrape. Never fabricate.
+
+### Testimonials placement
+
+Testimonials live in their own home-page section between Services and FAQ. Use first name + last initial only (e.g., "Maria S.") — never include condition, medication, Rx number, or any other PHI. Each testimonial is a `<blockquote>` with `<cite>` for the attribution. Emit `Review` JSON-LD nested inside the `Pharmacy` node ONLY if the source confirms a rating value; otherwise omit ratings. Never fabricate stars, never round up.
+
+### Click-to-call wiring
+
+Every visible phone number on the site is wrapped in `<a href="tel:+1<10digits>">…</a>`. The `+1` country code prefix is required for reliable iOS handling. Strip formatting from the `href` only; keep formatting in the visible text:
+
+```html
+<a href="tel:+19515551234">(951) 555-1234</a>
+```
+
+Every email is wrapped in `<a href="mailto:…">…</a>`. Every address is linked to the Google Maps URL from the build sheet.
+
+### CTA copy rules
+
+Every CTA names the action. Banned labels: "Click here," "Learn more," "Submit," "Continue." Required pattern: verb + object.
+
+- ✓ "Refill a prescription"
+- ✓ "Transfer your prescription"
+- ✓ "Call us today"
+- ✓ "Get directions"
+- ✗ "Click here"
+- ✗ "Learn more"
+
+### Local SEO conversion signals
+
+- Embed the Google Map on the contact page (already required) AND link the top-bar address to the same map URL.
+- `LocalBusiness` / `Pharmacy` schema includes `geo` only if scraped/sourced (no external geocoding per §Schema). `openingHoursSpecification` is parsed from build-sheet hours.
+- Add `aggregateRating` to the `Pharmacy` node only if the build sheet or scrape contains real, verifiable review data. Never invent ratings.
+
+### Anti-patterns (banned, enforced by content validator)
+
+- Pop-up newsletter signups, exit-intent modals, interstitials of any kind on first-page load.
+- Auto-play video or audio.
+- Cookie banners that block scrolling or that block content interaction. If a banner is legally required, render a compact dismissible bottom notice that does not modal-block the page.
+- "Limited time" / fake-scarcity language (also caught by §Banned phrasings).
+- Phone numbers rendered as plain text (no `tel:` link).
+- Email addresses rendered as plain text (no `mailto:` link).
+- CTA labels that don't name the action (see CTA copy rules).
+- Carousel hero on mobile (one hero message, no rotation — rotating heroes destroy mobile conversion).
 
 ## Visual design
 
@@ -437,7 +539,7 @@ Generate the following files at the site root alongside `index.html`.
 
 **`robots.txt`**
 
-Allow all crawlers and reference the sitemap:
+Plain text, UTF-8, **LF line endings (no CRLF), no BOM, no comments above directives.** One directive per line. Sitemap URL must be a fully qualified absolute URL. Write the file as exactly:
 
 ```
 User-agent: *
@@ -445,36 +547,90 @@ Allow: /
 Sitemap: <New Website URL>/sitemap.xml
 ```
 
+Where `<New Website URL>` is the absolute base URL from the build sheet (no trailing slash before the `/sitemap.xml` suffix; the suffix carries its own slash). Do not include `Disallow:` rules (no path needs blocking by default). Do not include `Crawl-delay` (Google ignores it). Do not add custom directives for individual bots.
+
+Validation: file exists at `/robots.txt`, MIME `text/plain; charset=utf-8`, contains exactly the `User-agent: *` / `Allow: /` / `Sitemap:` directives, no extra non-standard lines. The Sitemap URL must return HTTP 200 from a same-host fetch.
+
 **`sitemap.xml`**
 
-Include every generated page. Set `<lastmod>` to the build date (ISO 8601). Use the following priority scheme:
+Emit a **valid XML 1.0 document** that parses cleanly and validates against the sitemaps.org schema. Common breakage modes — fix all before declaring done:
 
-- Home page: `1.0`
-- Top-level pages (e.g. `/services`, `/about`, `/contact`): `0.8`
-- Deep pages (e.g. `/services/compounding`): `0.6`
+- XML declaration on **line 1** with no preceding whitespace and no BOM: `<?xml version="1.0" encoding="UTF-8"?>`
+- Root element `<urlset>` with the **exact namespace attribute** `xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"`. No other attributes on the root.
+- One `<url>` element per generated page. Inside each: `<loc>` (absolute URL with trailing slash for index/section pages), `<lastmod>` (ISO 8601 date `YYYY-MM-DD`), `<changefreq>`, `<priority>` — all four sub-elements required.
+- Ampersands in URLs escaped as `&amp;`. No other entity issues.
+- Ordering: home first, top-level pages next, deep pages last. The order has no SEO impact but makes the file legible.
+
+`<changefreq>` per page type: `weekly` (home), `monthly` (top-level), `yearly` (static service detail pages). `<priority>`: `1.0` home, `0.8` top-level, `0.6` deep.
+
+Exact template:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://example.com/services/</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://example.com/services/immunizations/</loc>
+    <lastmod>2026-05-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>
+```
+
+Validation: parse `/sitemap.xml` with an XML parser; confirm well-formedness, the sitemaps.org namespace, at least one `<url>` entry, every entry contains all four sub-elements, and every `<loc>` URL returns HTTP 200. Any parse error or missing sub-element halts the build.
 
 **`llms.txt`**
 
-Generate a markdown index following the llms.txt spec. Structure:
+Generate following the [llms.txt spec](https://llmstxt.org). The file's job is to give an LLM enough context to answer questions about this pharmacy. Use this exact structure:
 
-```
+```markdown
 # <Pharmacy Name>
 
-<One-sentence description of the pharmacy.>
+> <Plain-prose summary, ≤ 200 chars, sourced from build-sheet tagline or about copy. No marketing hyperbole. Required blockquote line.>
 
-## Pages
-- [Home](<New Website URL>/)
-- [Services](<New Website URL>/services)
-- ...
+<2–4 sentence paragraph: city/state, key services, plain-English hours summary (e.g., "Open Monday through Friday, 9 am to 6 pm"), and how a patient takes action (call, refill, transfer). Sourced from the build sheet — never invented.>
 
 ## Services
-- [<Service Name>](<New Website URL>/services/<slug>)
-- ...
 
-## About
-- [About Us](<New Website URL>/about)
-- [Contact](<New Website URL>/contact)
+- [Refill Prescriptions](<New Website URL>/refill/): Wired to the build-sheet refill portal URL.
+- [Transfer a Prescription](<New Website URL>/transfer/): Outbound link to the transfer destination; no PHI is collected on this site.
+- [<Topic Service 1>](<New Website URL>/services/<slug-1>/): <One-sentence description from the build sheet.>
+- [<Topic Service 2>](<New Website URL>/services/<slug-2>/): <One-sentence description from the build sheet.>
+- ...one bullet per Topics entry, plus a single bullet listing List-only services...
+
+## Information
+
+- [About](<New Website URL>/about/): Pharmacy story, year opened, independence.
+- [Contact](<New Website URL>/contact/): Address, phone, fax, email, map + directions.
+- [Hours](<New Website URL>/contact/#hours): Business hours table.
+- [FAQ](<New Website URL>/faq/): Site-wide frequently asked questions.
+
+## Optional
+
+- [Patient Portal](<Patient Portal URL from build sheet>): External login to manage prescriptions.
+- [Mobile App](<New Website URL>/app/): Only included when `Requires Mobile App Page` is yes in the build sheet.
 ```
+
+Strict-format rules:
+
+- The blockquote (`> …`) is **required** and is the LLM-readable summary. Plain prose only — no inline markdown, no links inside the blockquote.
+- Each link bullet uses the format `[Title](URL): description` — the colon-space-description suffix is the spec form. Omit the suffix only when a link genuinely has no description.
+- Section headers are exactly `## Services`, `## Information`, `## Optional`. The `## Optional` section is the spec's defined opt-out section for content an LLM may skip when context is limited.
+- File saved as `llms.txt` at site root, UTF-8, LF line endings.
+- Encode special characters per markdown rules (parentheses inside URLs).
+- Omit any bullet whose source data is missing — never stub or fabricate links.
 
 ## Schema (JSON-LD)
 
@@ -851,6 +1007,15 @@ SEO + SCHEMA
 [ ] Per-service JSON-LD: MedicalProcedure / MedicalTherapy / MedicalTest / Vaccine for clinical services; plain Service for operational ones
 [ ] No on-site search: no SearchAction in JSON-LD, no /search route, no search input in markup
 [ ] ui-ux-pro-max invoked during Generate; review pass run; brand color preserved; no constraint conflicts unresolved
+[ ] sitemap.xml parses as well-formed XML; sitemaps.org namespace present; every <url> has loc/lastmod/changefreq/priority
+[ ] robots.txt: User-agent + Allow + Sitemap directives only; UTF-8 LF, no BOM; absolute Sitemap URL
+[ ] llms.txt: H1 + blockquote + paragraph + ## Services + ## Information + ## Optional sections; spec format honored
+[ ] Mobile menu: hamburger trigger, role=dialog drawer, focus trap, Esc closes, backdrop closes, body scroll lock, prefers-reduced-motion respected, no hover-only interactions
+[ ] All tap targets >= 44x44 CSS pixels on mobile
+[ ] Sticky bottom CTA bar on mobile (Call + Refill); respects safe-area-inset-bottom; hidden when drawer open
+[ ] Above-the-fold on mobile: name + tagline + Refill CTA + tel: link + open-now indicator all visible without scroll
+[ ] Every phone number wrapped in <a href="tel:+1..."> with +1 prefix; every email in mailto: link
+[ ] No carousel hero, no exit-intent modals, no auto-play media, no "Click here" / "Learn more" CTA copy
 [ ] MobileApplication JSON-LD only when app page exists
 [ ] Schema validates (parse + required props)
 CONTENT GUARDRAILS

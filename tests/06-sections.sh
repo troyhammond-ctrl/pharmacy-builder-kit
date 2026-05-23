@@ -46,4 +46,16 @@ assert_contains "omitted, not stubbed" "06-sections:omit-not-stub"
 assert_contains "Lorem ipsum" "06-sections:no-lorem"
 assert_contains "Coming soon" "06-sections:no-coming-soon"
 
+# Mobile navigation contract
+assert_contains "Mobile navigation" "06-sections:mobile-nav-section"
+assert_contains "1024px" "06-sections:mobile-breakpoint"
+assert_contains "hamburger" "06-sections:hamburger"
+assert_contains '44×44' "06-sections:tap-target-size"
+assert_contains 'role="dialog"' "06-sections:dialog-role"
+assert_contains 'aria-modal="true"' "06-sections:aria-modal"
+assert_contains "aria-expanded" "06-sections:aria-expanded"
+assert_contains "focus trap" "06-sections:focus-trap"
+assert_contains "prefers-reduced-motion" "06-sections:reduced-motion"
+assert_contains "safe-area-inset" "06-sections:safe-area"
+
 pass "06-sections"

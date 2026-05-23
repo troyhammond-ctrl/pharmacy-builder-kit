@@ -31,4 +31,23 @@ assert_contains "sitemap.xml" "11-seo:sitemap"
 assert_contains "llms.txt" "11-seo:llms"
 assert_contains "lastmod" "11-seo:lastmod"
 
+# robots.txt concrete content
+assert_contains "User-agent: *" "11-seo:robots-user-agent"
+assert_contains "Allow: /" "11-seo:robots-allow"
+assert_contains "no BOM" "11-seo:no-bom"
+assert_contains "LF line endings" "11-seo:lf-line-endings"
+
+# sitemap.xml validity
+assert_contains 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' "11-seo:sitemap-namespace"
+assert_contains '<?xml version="1.0" encoding="UTF-8"?>' "11-seo:xml-declaration"
+assert_contains "<urlset" "11-seo:urlset"
+assert_contains "<changefreq>" "11-seo:changefreq"
+assert_contains "&amp;" "11-seo:ampersand-escape"
+
+# llms.txt spec compliance
+assert_contains "llmstxt.org" "11-seo:llmstxt-spec-link"
+assert_contains "## Information" "11-seo:llms-information-section"
+assert_contains "## Optional" "11-seo:llms-optional-section"
+assert_contains "Required blockquote" "11-seo:llms-blockquote-required"
+
 pass "11-seo"
