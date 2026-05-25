@@ -170,11 +170,19 @@ Replit gives you a `*.replit.app` URL immediately. Verify the live site by runni
 
 ## Iterating on design
 
-The skill invokes the `ui-ux-pro-max` skill during Step 4 for visual decisions. If you want a second pass:
+The skill drives a three-skill design toolchain during Step 4 — Generate, invoked in this exact order:
 
-> Invoke ui-ux-pro-max with its `review` action against the rendered output of this site. Apply its findings as a second design pass. Re-run the accessibility validator after the changes.
+1. **`ui-ux-pro-max`** — initial design system, layout, palette extension, font pairing, component patterns. 67 styles, 96 palettes, 13 stacks.
+2. **`huashu-design`** — aesthetic refinement pass over pro-max's first cut: micro-typography, spacing nuance, color rhythm.
+3. **`Impeccable`** — final polish pass: hover states, focus styles, subtle motion, edge cases (long names, missing logos), the "intentional vs acceptable" pass.
 
-The skill explicitly says design isn't done until the a11y validator passes AND a pro-max review returns no critical issues.
+If you want to re-run the design pipeline against an already-generated site:
+
+> Invoke the three design skills in order against the rendered output: ui-ux-pro-max with its `review` action, then huashu-design refinement, then Impeccable polish. Apply non-conflicting findings as a second design pass. Re-run the accessibility validator and the content validator after the changes. Log each review pass and its findings to `/build/log.md`.
+
+Each skill must consult its own description for the exact actions it supports. If a skill isn't available in your Replit environment, the agent skips it and logs the absence — it never substitutes a different skill silently.
+
+Design isn't done until **all of**: the a11y validator passes, the content validator passes, AND each of the three design-skill reviews returns no critical issues.
 
 ---
 

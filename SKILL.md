@@ -309,24 +309,47 @@ Every CTA names the action. Banned labels: "Click here," "Learn more," "Submit,"
 
 The skill is stack-agnostic, but design quality is not optional. Pharmacies are healthcare businesses — the site must look professional, modern, and trustworthy.
 
-**Invoke the `ui-ux-pro-max` skill** for all visual design decisions: layout, typography, color application beyond the brand hex, spacing, shadows, gradients, hover states, animations, and component patterns. Pro-max is the design authority during Step 4 — Generate.
+### Design skill toolchain
 
-**Style direction.** Clean, modern, professional. Recommended styles from pro-max's catalog: minimalism, flat design with subtle depth, or a restrained bento grid layout on the home page. Avoid brutalism, claymorphism, heavy neumorphism, and anything that reads "trendy" rather than "trustworthy."
+Three design skills work together. Replit Agent must invoke them in the order below during Step 4 — Generate. Each skill is the authority for its phase; on any conflict between a skill's suggestion and a constraint listed under "Constraints" below, the constraint wins.
 
-**Stack hint.** When pro-max needs a stack signal, default to React + Tailwind + shadcn/ui (via the shadcn MCP). If Replit Agent picks a different stack at scaffolding time, pro-max should align with that stack instead.
+1. **`ui-ux-pro-max`** — *initial design system and layout.* Use for foundational decisions: page composition and information hierarchy, palette extension around the brand hex, font pairing selection, component patterns (cards, navbars, modals, forms, buttons), spacing and rhythm, responsive breakpoints. Pro-max ships 67 styles, 96 palettes, 57 font pairings, 13 stacks (including React + Tailwind + shadcn/ui). It produces the first design pass.
 
-**Constraints — pro-max output is filtered through these. On any conflict, the constraint wins.**
+2. **`huashu-design`** — *aesthetic refinement.* Apply after the pro-max first pass to refine the visual style: micro-typography, spacing nuance, color rhythm, and overall aesthetic coherence. If `huashu-design` exposes a `review` or `apply` action, run it against the rendered first pass. Treat huashu-design as the taste layer that elevates pro-max's structural output.
 
-- **Brand color is canonical.** The hex from the build sheet is the primary accent. Pro-max may propose complementary or neutral shades around it, but the brand hex itself is non-negotiable.
-- **Accessibility wins.** If a pro-max suggestion conflicts with §Accessibility (low-contrast hover, focus override < 3:1, color-only indicators), the §Accessibility rule wins. Never sacrifice WCAG 2.2 AA for visual flair.
-- **Voice wins.** If pro-max generates microcopy (button labels, empty states, error text), §Voice and §Banned phrasings still apply. Filter pro-max copy through `tools/validate-content.mjs` before declaring done.
-- **Required sections are non-negotiable.** Pro-max may not invent layouts that omit any of §Required sections or merge them in ways that hide critical content.
-- **Iconography.** Pro-max picks one icon set per §Required sections › Iconography rule; never mix sets even if pro-max suggests a hybrid.
-- **Typography.** Pro-max picks one of its font pairings. Body sans-serif must support the 8th-grade readability target in §Voice; display fonts must remain accessible at the sizes used. No ornamental display fonts for body content.
-- **Dark mode.** Ship dark mode only if pro-max can produce one without breaking WCAG AA contrast against the brand color. If brand color cannot satisfy AA on a dark background, ship light mode only and log the decision in `/build/log.md`. Never force a degraded dark mode.
-- **Responsive and mobile-first.** Pro-max output must pass on phone, tablet, and desktop breakpoints. The sticky header must not trap focus or scroll on mobile.
+3. **`Impeccable`** — *final polish and detail pass.* Run last, against the rendered output after huashu-design. Impeccable's role is the finishing pass: hover states, focus styles (respecting §Accessibility), subtle motion, shadow depth, edge cases (long pharmacy names, missing logos, very short hero copy), and any element that needs to feel intentional rather than acceptable.
 
-**Review pass.** After Step 4 — Generate produces the first pass, invoke pro-max again with its `review` action against the rendered output and fold its findings into a second pass. Do not declare design done until the §Accessibility validator passes AND a pro-max review returns no critical issues.
+Each skill must consult its own description for the exact actions it supports. If a skill is unavailable in the current Replit environment, skip it and log the absence in `/build/log.md` — never substitute a different skill silently, and never fabricate output that mimics one.
+
+### Style direction
+
+Clean, modern, professional. Recommended styles from the pro-max catalog: minimalism, flat design with subtle depth, or a restrained bento grid layout on the home page. Avoid brutalism, claymorphism, heavy neumorphism, and anything that reads "trendy" rather than "trustworthy." Huashu-design and Impeccable refinements must stay inside this direction — none of them is a license to drift toward editorial, playful, or experimental aesthetics.
+
+### Stack hint
+
+When any design skill needs a stack signal, default to React + Tailwind + shadcn/ui (via the shadcn MCP). If Replit Agent picks a different stack at scaffolding time, all three design skills must align with that stack so their tokens and components stay compatible.
+
+### Constraints — design-skill output is filtered through these. On any conflict, the constraint wins.
+
+- **Brand color is canonical.** The hex from the build sheet is the primary accent across all three skills' output. They may propose complementary or neutral shades around it, but the brand hex itself is non-negotiable.
+- **Accessibility wins.** If any skill suggests a low-contrast hover, a focus override < 3:1, a color-only indicator, or any pattern that conflicts with §Accessibility, the §Accessibility rule wins. Never sacrifice WCAG 2.2 AA for visual flair.
+- **Voice wins.** If any skill generates microcopy (button labels, empty states, error text), §Voice and §Banned phrasings still apply. Filter all design-skill copy through `tools/validate-content.mjs` before declaring done.
+- **Required sections are non-negotiable.** No skill may invent layouts that omit any of §Required sections or merge them in ways that hide critical content.
+- **Iconography.** Pro-max picks one icon set per §Required sections › Iconography rule. Neither huashu-design nor Impeccable may swap sets or mix families during their refinement passes.
+- **Typography.** Pro-max picks one of its font pairings. Body sans-serif must support the 8th-grade readability target in §Voice; display fonts must remain accessible at the sizes used. No ornamental display fonts for body content, even if huashu-design or Impeccable suggests otherwise.
+- **Dark mode.** Ship dark mode only if all three skills can collectively produce one without breaking WCAG AA contrast against the brand color. If brand color cannot satisfy AA on a dark background, ship light mode only and log the decision in `/build/log.md`. Never force a degraded dark mode.
+- **Responsive and mobile-first.** Every skill's output must pass on phone, tablet, and desktop breakpoints. The sticky header must not trap focus or scroll on mobile (see §Required sections › Mobile navigation).
+- **Conversion contract.** None of the three skills may override §Conversion: the sticky bottom mobile CTA bar, the action priority (Call > Refill > Transfer > Portal), above-the-fold rules, and the click-to-call wiring stand regardless of design preference.
+
+### Review passes
+
+After Step 4 — Generate produces the rendered output, run a review pass through each skill in order:
+
+1. Pro-max `review` action against the rendered output; apply non-conflicting findings as a second design pass.
+2. Huashu-design review (if it exposes a review action) for aesthetic regressions introduced by step 1's fixes.
+3. Impeccable review for final polish gaps.
+
+Do not declare design done until **all of**: the §Accessibility validator passes, the §Banned phrasings validator passes, AND each of the three design-skill reviews returns no critical issues. Log every review pass and its findings to `/build/log.md`.
 
 ## Voice
 
@@ -936,7 +959,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 
 **Input:** `/build/page-plan.json` (Step 3); `build/context.json` (Step 1); `/scraped/` corpus (Step 2).
 
-**Action:** Scaffold the project and generate every page in the plan. **Invoke the `ui-ux-pro-max` skill per §Visual design** to drive layout, typography, palette extension around the brand hex, components, spacing, and motion — pro-max output filtered through the §Visual design constraints. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, and emit all required JSON-LD blocks per §Schema (JSON-LD). After all pages are written, generate the site-wide files:
+**Action:** Scaffold the project and generate every page in the plan. **Invoke the three design skills in order per §Visual design › Design skill toolchain: `ui-ux-pro-max` → `huashu-design` → `Impeccable`.** Pro-max sets the foundational design system and layout; huashu-design refines aesthetic style; Impeccable finishes with polish and micro-detail. All three skills' output is filtered through the §Visual design constraints, §Accessibility, §Voice, and §Conversion contracts. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, and emit all required JSON-LD blocks per §Schema (JSON-LD). After all pages are written, generate the site-wide files:
 
 - `robots.txt` per §SEO › Site-wide files
 - `sitemap.xml` per §SEO › Site-wide files
@@ -1006,7 +1029,7 @@ SEO + SCHEMA
 [ ] BreadcrumbList on non-home pages
 [ ] Per-service JSON-LD: MedicalProcedure / MedicalTherapy / MedicalTest / Vaccine for clinical services; plain Service for operational ones
 [ ] No on-site search: no SearchAction in JSON-LD, no /search route, no search input in markup
-[ ] ui-ux-pro-max invoked during Generate; review pass run; brand color preserved; no constraint conflicts unresolved
+[ ] Design skill toolchain invoked in order: ui-ux-pro-max -> huashu-design -> Impeccable; each review pass run; absences logged; brand color preserved; no constraint conflicts unresolved
 [ ] sitemap.xml parses as well-formed XML; sitemaps.org namespace present; every <url> has loc/lastmod/changefreq/priority
 [ ] robots.txt: User-agent + Allow + Sitemap directives only; UTF-8 LF, no BOM; absolute Sitemap URL
 [ ] llms.txt: H1 + blockquote + paragraph + ## Services + ## Information + ## Optional sections; spec format honored
