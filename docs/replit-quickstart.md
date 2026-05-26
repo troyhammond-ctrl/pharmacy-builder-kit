@@ -149,6 +149,24 @@ Replit auto-serves the project on a preview URL. Use that to spot-check:
 
 ---
 
+## Running the QA skill as an independent audit
+
+The builder's Step 5 — Validate runs three validators against its own output. For an independent second opinion (recommended before deploy), invoke the sibling [`QA-SKILL.md`](../QA-SKILL.md) against the built site.
+
+In Replit Agent:
+
+> Read `QA-SKILL.md` in this project and treat it as your binding instructions. Audit the site at `http://localhost:<port>` (or the deployed URL). Run all twelve audit dimensions and emit `audit/report.md` plus `audit/report.json`. Cross-reference findings against `build/context.json` when checking factual claims.
+
+The auditor will:
+
+1. **Resolve** the URL / path, discover pages via `sitemap.xml`, write `audit/scope.json`.
+2. **Fetch** every page (raw HTML + rendered DOM + network metrics).
+3. **Check** twelve dimensions: pages & structure, accessibility (WCAG 2.2 AA), SEO metadata, schema (JSON-LD), site-wide files (robots/sitemap/llms validity), mobile UX (drawer / sticky bottom bar / tap targets), conversion patterns, content guardrails (banned phrasings / PHI scan / clinical advice / fabricated facts), voice & readability, visual quality, performance, security & privacy.
+4. **Render** the report at `audit/report.md` and `audit/report.json`.
+5. **Verdict** — PASS, PASS WITH WARNINGS, or FAIL.
+
+Treat a FAIL verdict as blocking. Treat PASS WITH WARNINGS as a punch list to work through before launch. Inspect `audit/findings.jsonl` for the full structured findings.
+
 ## Deploying
 
 Replit Deployments serves static sites well:

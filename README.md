@@ -1,21 +1,25 @@
 # pharmacy-builder-kit
 
-A single-file skill that instructs Replit Agent (or Claude) to build a clean, modern, accessible, factually faithful pharmacy website from a build folder.
+Two paired skills for building and auditing pharmacy websites:
 
-The deliverable is [`SKILL.md`](SKILL.md). The skill is stack-agnostic — the agent picks the framework.
+- **[`SKILL.md`](SKILL.md)** — the **builder**. Instructs Replit Agent (or Claude) to build a clean, modern, accessible, factually faithful pharmacy site from a build folder.
+- **[`QA-SKILL.md`](QA-SKILL.md)** — the **auditor**. Takes a built pharmacy site (URL or local path) and produces a structured findings report across twelve audit dimensions, with severity-tagged issues and recommended fixes.
 
-> 📘 **New here?** See [`docs/replit-quickstart.md`](docs/replit-quickstart.md) for the end-to-end Replit walkthrough: import → build folder → drive the five-step build → preview → deploy → troubleshoot.
+Both skills are stack-agnostic — they tell the agent what the output must satisfy, not how to build it.
+
+> 📘 **New here?** See [`docs/replit-quickstart.md`](docs/replit-quickstart.md) for the end-to-end Replit walkthrough: import → build folder → drive the five-step build → audit → preview → deploy → troubleshoot.
 
 ## What's in this repo
 
 | Path | Purpose |
 |---|---|
-| `SKILL.md` | The skill itself. Paste this into Replit Agent as the system prompt, or commit it into your Replit project as a skill. |
+| `SKILL.md` | The **builder** skill. Paste into Replit Agent as a system prompt or commit into your Replit project as a skill. |
+| `QA-SKILL.md` | The **auditor** skill. Run against a built site (URL or path) for an independent second-opinion audit covering pages, a11y, SEO, schema, robots/sitemap/llms, mobile UX, conversion, content guardrails, voice, visual quality, performance, and security. |
 | `README.md` | This file. |
-| `docs/replit-quickstart.md` | Step-by-step Replit operator guide (import, build, deploy, troubleshoot). |
-| `docs/superpowers/specs/` | Design spec the SKILL.md was built from. Authoritative for any future revisions. |
+| `docs/replit-quickstart.md` | Step-by-step Replit operator guide (import, build, audit, deploy, troubleshoot). |
+| `docs/superpowers/specs/` | Design spec the builder SKILL.md was built from. Authoritative for any future revisions. |
 | `docs/superpowers/plans/` | Implementation plan used to build the SKILL.md. |
-| `tests/` | Shell-based structural tests that verify SKILL.md satisfies the spec. |
+| `tests/` | Shell-based structural tests that verify both SKILL.md and QA-SKILL.md satisfy their contracts. |
 
 ## How to use it
 
