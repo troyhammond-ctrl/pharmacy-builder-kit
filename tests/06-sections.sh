@@ -58,4 +58,12 @@ assert_contains "focus trap" "06-sections:focus-trap"
 assert_contains "prefers-reduced-motion" "06-sections:reduced-motion"
 assert_contains "safe-area-inset" "06-sections:safe-area"
 
+# Cookie consent banner contract
+assert_contains "Cookie consent banner" "06-sections:cookie-banner-section"
+assert_contains "Accept all" "06-sections:cookie-accept-all"
+assert_contains "Reject non-essential" "06-sections:cookie-reject"
+assert_contains "Privacy Policy" "06-sections:cookie-privacy-link"
+assert_contains "consent gate" "06-sections:cookie-consent-gate"
+assert_contains "must not be set" "06-sections:cookie-suppress-until-accept"
+
 pass "06-sections"

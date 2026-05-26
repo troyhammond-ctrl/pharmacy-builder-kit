@@ -324,7 +324,127 @@ Findings reference: `perf.page-weight`, `perf.lcp`, `perf.cls`, `perf.no-lazy-lo
 - Cookie banner (if present) does not modal-block content and is dismissible.
 - External links to Google Maps and other destinations use `rel="noopener noreferrer"`.
 
-Findings reference: `sec.no-hsts`, `sec.no-csp`, `sec.no-nosniff`, `sec.no-referrer-policy`, `sec.mixed-content`, `sec.unauthorized-third-party`, `sec.phi-in-storage`, `sec.unsafe-external-link`.
+Findings reference: `sec.no-hsts`, `sec.no-csp`, `sec.no-nosniff`, `sec.no-referrer-policy`, `sec.mixed-content`, `sec.unauthorized-third-party`, `sec.phi-in-storage`, `sec.unsafe-external-link`, `sec.no-clickjacking-protection`.
+
+**Clickjacking protection — explicit.** Either `X-Frame-Options: SAMEORIGIN` (or `DENY`) OR a `Content-Security-Policy` containing a `frame-ancestors` directive that restricts framing. At least one of these must be present. Both is better. A site with neither fails this check (Important severity by default; Critical if the site has any login or auth flow).
+
+### 13. HIPAA compliance
+
+Five checks, mirroring the highest-weighted grader category (25%). Every pharmacy site must satisfy all five.
+
+**1. Privacy policy link.** A `/privacy/` page exists, returns HTTP 200, and is linked from the footer of every page. The link's visible text contains "Privacy Policy" or "Privacy Practices." The linked page contains the pharmacy's Notice of Privacy Practices (HIPAA-required) covering at minimum: how PHI is used and disclosed, patient rights, how to file a complaint with the pharmacy and with HHS, contact information for the pharmacy's Privacy Officer (or designated contact), and an effective date. Generic boilerplate without the pharmacy's actual contact details is a finding.
+
+**2. HIPAA disclaimer on forms.** No public form on the site should collect PHI (per §PHI rules in the builder contract). If any form exists for non-PHI purposes (e.g., a contact-us request — which we also discourage), it must include a visible HIPAA disclaimer above the submit control with this exact pattern: "Do not submit Protected Health Information through this form. For prescription transfers, refills, or anything involving your medications, call us at `<phone>`." A form collecting PHI is a Critical finding regardless of disclaimer presence.
+
+**3. Cookie consent banner.** A compact, dismissible cookie consent banner is present on first visit when any non-essential cookie or storage is used (e.g., GA wired via the build-sheet GA ID). Rules:
+
+- Compact bottom banner — never a center-screen modal that blocks content interaction.
+- Names the categories used: "Essential" plus "Analytics" if GA is wired. No mention of categories the site doesn't use.
+- Provides Accept All, Reject Non-Essential, and a link to `/privacy/`. The Reject control must actually suppress non-essential cookies.
+- Persists the user's choice (cookie or localStorage; never PHI; never linkable to the patient).
+- Hidden after the choice is made; reappears only if the persisted choice expires or is cleared.
+- Does not block keyboard navigation or screen reader access while visible.
+
+A banner that modal-blocks content, or that has no Reject option, or that drops analytics cookies before consent, fails this check (Important by default; Critical if it blocks accessibility).
+
+**4. HTTPS encryption.** Already verified in Dimension 12. Cross-listed here so the HIPAA category aggregates correctly. A site without HTTPS fails BOTH dimensions (Critical, Critical).
+
+**5. No exposed patient data.** Already verified in Dimension 8 via the PHI scan and form-field checks. Cross-listed here so the HIPAA category aggregates correctly. Any exposed PHI fails BOTH dimensions (Critical, Critical).
+
+**Notice of Privacy Practices content checks (the `/privacy/` page itself):**
+
+- Headed "Notice of Privacy Practices" (or includes that phrase prominently).
+- States the effective date.
+- Names the Privacy Officer or designated contact with a phone or email.
+- References the pharmacy's right to amend the notice and how patients will be notified.
+- Includes the patient's right to: inspect and copy their record, request amendments, request restrictions, receive an accounting of disclosures, request confidential communications, and file a complaint with the pharmacy AND the U.S. Department of Health and Human Services Office for Civil Rights.
+- Includes the HHS OCR complaint URL: `https://www.hhs.gov/ocr/privacy/hipaa/complaints/` (or the current canonical URL — verify it returns HTTP 200 from the audit base).
+- Plain language consistent with §Voice in the builder contract.
+
+Findings reference: `hipaa.no-privacy-policy`, `hipaa.privacy-policy-no-effective-date`, `hipaa.privacy-policy-no-contact`, `hipaa.privacy-policy-missing-patient-rights`, `hipaa.privacy-policy-no-ocr-link`, `hipaa.privacy-policy-not-linked-from-footer`, `hipaa.form-no-disclaimer`, `hipaa.no-cookie-banner`, `hipaa.cookie-banner-modal-blocking`, `hipaa.cookie-banner-no-reject`, `hipaa.cookie-banner-no-categories`, `hipaa.analytics-before-consent`.
+
+## Scoring rubric
+
+The grader that operators benchmark against scores six weighted categories. Every QA report must compute a 0–100 score per category, a weighted total, and a letter grade — alongside the dimension findings — so the operator can read the report next to the grader output and see them line up.
+
+| Category | Weight | QA dimensions that feed it |
+|---|---|---|
+| HIPAA Compliance | 25% | Dimension 13 (primary); Dimensions 8 (PHI scan) + 12 (HTTPS) cross-listed |
+| Accessibility | 20% | Dimension 2 |
+| Performance | 20% | Dimension 11 |
+| SEO | 20% | Dimension 3 (head metadata); Dimension 4 (schema.org JSON-LD); the site-wide-file accessibility checks from Dimension 5 |
+| Usability | 10% | Dimension 6 (Mobile UX) + the responsive checks below |
+| Security | 5% | Dimension 12 |
+
+**Per-category scoring.** Each category starts at 100. Subtract for each finding referenced from a feeding dimension:
+
+- Critical: −20
+- Important: −10
+- Minor: −2
+
+Floor at 0. The result is the category score (0–100).
+
+**Weighted total.** `weighted_total = Σ(category_score × weight) ÷ 100`. Floor 0, cap 100.
+
+**Letter grade.** A ≥ 90; B 80–89; C 70–79; D 60–69; F < 60.
+
+**Per-category check rendering.** The report must reproduce the grader's check-by-check breakdown (✓ pass, ✗ fail) so the two reports read side by side. Use these check names — they match the grader's labels verbatim:
+
+*HIPAA Compliance:* HIPAA disclaimer on forms; Privacy policy link; Cookie consent banner; HTTPS encryption; No exposed patient data.
+
+*Accessibility:* Image alt text; Skip-to-content link; ARIA landmarks; Form input labels; Focus indicators; Reduced motion support; HTML lang attribute.
+
+*Performance:* Lighthouse performance score; Largest Contentful Paint (LCP); Cumulative Layout Shift (CLS); First Contentful Paint (FCP); Speed Index.
+
+*SEO:* Title tag; Meta description; H1 heading; Schema.org structured data; Open Graph tags; Canonical URL; robots.txt; sitemap.xml.
+
+*Usability:* Mobile viewport; Responsive design (media queries); Touch-friendly tap targets; Readable font size; No horizontal scroll.
+
+*Security:* HTTPS; HSTS header; Clickjacking protection; Bot protection on forms; Content Security Policy.
+
+**Grading thresholds the QA skill enforces.** A weighted total below 80 is a deployment blocker — flag the verdict to FAIL even if no individual dimension recorded a Critical finding. Aim for 90+. The pharmacy-builder skill is designed to produce a 95+ on a clean build.
+
+## Tighter measurements for Performance, Usability, and Security
+
+The grader is more specific than Dimensions 6, 11, and 12 were originally written. Augment those dimensions with these explicit metrics:
+
+### Performance — Lighthouse-grade targets (Dimension 11 augmentation)
+
+Run Lighthouse against every page (mobile and desktop) or a headless equivalent (`puppeteer` with `lighthouse` library). Required thresholds:
+
+| Metric | Pass | Important | Critical |
+|---|---|---|---|
+| Lighthouse Performance score (mobile) | ≥ 90 | 80–89 | < 80 |
+| Largest Contentful Paint (LCP) | ≤ 2.5s | 2.5–4.0s | > 4.0s |
+| Cumulative Layout Shift (CLS) | ≤ 0.1 | 0.1–0.25 | > 0.25 |
+| First Contentful Paint (FCP) | ≤ 1.8s | 1.8–3.0s | > 3.0s |
+| Speed Index | ≤ 3.4s | 3.4–5.8s | > 5.8s |
+| Total Blocking Time (TBT) | ≤ 200ms | 200–600ms | > 600ms |
+| Time to Interactive (TTI) | ≤ 3.8s | 3.8–7.3s | > 7.3s |
+
+Findings reference: `perf.lighthouse-score`, `perf.lcp`, `perf.cls`, `perf.fcp`, `perf.speed-index`, `perf.tbt`, `perf.tti`.
+
+### Usability — responsive design checks (Dimension 6 augmentation)
+
+Beyond the existing Mobile UX drawer/tap-target checks, the grader's Usability category demands these explicit responsive primitives. Audit each:
+
+- **Mobile viewport meta tag.** `<meta name="viewport" content="width=device-width, initial-scale=1">` present on every page. Missing = Critical.
+- **Responsive design (media queries).** At least one `@media` query present in the page's CSS. Mobile-first sites typically have several. Zero = Critical (signals a non-responsive site).
+- **Touch-friendly tap targets.** Every interactive element has a hit area ≥ 44×44 CSS pixels at mobile widths (Apple HIG) or ≥ 48×48 (Material). Already in Dimension 6; surfaced here for the rubric.
+- **Readable font size.** Body text computed font-size ≥ 16px on mobile. iOS auto-zooms input fields with font-size < 16px on focus — a UX defect.
+- **No horizontal scroll on mobile.** At 320px viewport width, the document does not scroll horizontally. Inspect with `document.documentElement.scrollWidth <= window.innerWidth`. Common cause: missing `box-sizing: border-box` reset or a fixed-width element. Missing = Important.
+- **Box-sizing reset.** Confirm CSS includes `*, *::before, *::after { box-sizing: border-box; }` or equivalent. Missing = Important (causes the horizontal scroll issue above).
+
+Findings reference: `usability.no-viewport-meta`, `usability.no-media-queries`, `usability.tap-targets-small`, `usability.font-too-small`, `usability.horizontal-scroll`, `usability.no-box-sizing-reset`.
+
+### Security — clickjacking protection and bot protection (Dimension 12 augmentation)
+
+- **Clickjacking protection.** `X-Frame-Options: SAMEORIGIN` (or `DENY`) header OR a `Content-Security-Policy` containing `frame-ancestors` directive (`'self'` or `'none'`). Both is best. Neither = Important.
+- **Bot protection on forms.** If any form exists (even a non-PHI contact form, which we discourage), it includes either: hCaptcha / reCAPTCHA / Cloudflare Turnstile invisible challenge OR a honeypot field. The pharmacy-builder default of no forms passes this trivially.
+- **Subresource integrity (SRI).** Externally-hosted scripts and stylesheets include `integrity="sha384-..."` and `crossorigin="anonymous"` attributes. Without SRI, a CDN compromise becomes an XSS vector. Missing on a third-party script = Important.
+- **Permissions Policy.** `Permissions-Policy` header (or `Feature-Policy` legacy name) restricts unused browser features (camera, microphone, geolocation, USB, payment). The pharmacy site needs none of those; the policy should deny them all. Missing = Minor (defense in depth).
+
+Findings reference: `sec.no-clickjacking-protection`, `sec.no-sri-on-external-script`, `sec.no-permissions-policy`, `sec.no-bot-protection`.
 
 ## Best practices
 
@@ -374,7 +494,7 @@ Run the audit in five steps, mirroring the builder's process. Each step writes a
 
 **Input:** `audit/raw/`, `audit/rendered/`, `audit/metrics/`, optional `build/context.json`.
 
-**Action:** Run each of the twelve audit dimensions in order. For each finding, capture: dimension, severity (Critical / Important / Minor), page URL, DOM selector or file:line, the offending value, the recommended fix. Write findings to `audit/findings.jsonl` as one JSON object per line.
+**Action:** Run each of the thirteen audit dimensions in order (Dimensions 1–12 plus 13 HIPAA Compliance). Apply the augmented Performance / Usability / Security checks from the Tighter measurements section. For each finding, capture: dimension, severity (Critical / Important / Minor), page URL, DOM selector or file:line, the offending value, the recommended fix. Write findings to `audit/findings.jsonl` as one JSON object per line.
 
 Severity guidance:
 
@@ -390,7 +510,7 @@ Severity guidance:
 
 **Input:** `audit/findings.jsonl`.
 
-**Action:** Aggregate findings into a single markdown report at `audit/report.md`. Use the report format below. Also emit `audit/report.json` with the same structured data for machine consumption.
+**Action:** Aggregate findings into a single markdown report at `audit/report.md`. Use the report format below. Also emit `audit/report.json` with the same structured data for machine consumption. Compute the six grader-style scores per the §Scoring rubric, the weighted total, and the letter grade — these appear at the top of the report next to the verdict.
 
 **Exit criteria:** Both files exist. The summary table is complete. Every finding is referenced in the body.
 
@@ -400,11 +520,13 @@ Severity guidance:
 
 **Input:** `audit/report.md`.
 
-**Action:** Compute the overall verdict:
+**Action:** Compute the overall verdict using BOTH the severity rule and the score rule:
 
-- **PASS** if zero Critical findings, zero Important findings.
-- **PASS WITH WARNINGS** if zero Critical, any Important, any Minor.
-- **FAIL** if any Critical findings exist.
+- **PASS** if zero Critical findings, zero Important findings, AND weighted total ≥ 90.
+- **PASS WITH WARNINGS** if zero Critical, any Important, any Minor, AND weighted total ≥ 80.
+- **FAIL** if any Critical findings OR weighted total < 80.
+
+The score threshold backstops the severity rule — a site that accumulates many Minor findings can still drop the weighted total below 80 even with no Critical or Important findings, and that becomes a FAIL by score.
 
 Append the verdict to the top of `audit/report.md` and the JSON file. Reproduce the closing audit checklist (below) in `/audit/log.md` with each box checked or marked with the relevant finding ID.
 
@@ -424,8 +546,74 @@ Append the verdict to the top of `audit/report.md` and the JSON file. Reproduce 
 **Auditor:** pharmacy-qa skill
 **Pages audited:** <count>
 **Verdict:** PASS | PASS WITH WARNINGS | FAIL
+**Weighted score:** <0–100>  **Grade:** A | B | C | D | F
 
-## Summary
+## Score breakdown (grader rubric)
+
+| Category | Score | Grade | Weight |
+|---|---|---|---|
+| HIPAA Compliance | <0–100> | <A–F> | 25% |
+| Accessibility | <0–100> | <A–F> | 20% |
+| Performance | <0–100> | <A–F> | 20% |
+| SEO | <0–100> | <A–F> | 20% |
+| Usability | <0–100> | <A–F> | 10% |
+| Security | <0–100> | <A–F> | 5% |
+| **Weighted total** | **<0–100>** | **<A–F>** | 100% |
+
+### HIPAA Compliance details
+
+- <✓ or ✗> HIPAA disclaimer on forms: <evidence>
+- <✓ or ✗> Privacy policy link: <evidence>
+- <✓ or ✗> Cookie consent banner: <evidence>
+- <✓ or ✗> HTTPS encryption: <evidence>
+- <✓ or ✗> No exposed patient data: <evidence>
+
+### Accessibility details
+
+- <✓ or ✗> Image alt text
+- <✓ or ✗> Skip-to-content link
+- <✓ or ✗> ARIA landmarks
+- <✓ or ✗> Form input labels
+- <✓ or ✗> Focus indicators
+- <✓ or ✗> Reduced motion support
+- <✓ or ✗> HTML lang attribute
+
+### Performance details
+
+- <✓ or ✗> Lighthouse performance score: <NN>/100 (mobile)
+- <✓ or ✗> Largest Contentful Paint (LCP): <s>
+- <✓ or ✗> Cumulative Layout Shift (CLS): <value>
+- <✓ or ✗> First Contentful Paint (FCP): <s>
+- <✓ or ✗> Speed Index: <s>
+
+### SEO details
+
+- <✓ or ✗> Title tag
+- <✓ or ✗> Meta description
+- <✓ or ✗> H1 heading
+- <✓ or ✗> Schema.org structured data
+- <✓ or ✗> Open Graph tags
+- <✓ or ✗> Canonical URL
+- <✓ or ✗> robots.txt
+- <✓ or ✗> sitemap.xml
+
+### Usability details
+
+- <✓ or ✗> Mobile viewport
+- <✓ or ✗> Responsive design (media queries)
+- <✓ or ✗> Touch-friendly tap targets
+- <✓ or ✗> Readable font size
+- <✓ or ✗> No horizontal scroll
+
+### Security details
+
+- <✓ or ✗> HTTPS
+- <✓ or ✗> HSTS header
+- <✓ or ✗> Clickjacking protection
+- <✓ or ✗> Bot protection on forms
+- <✓ or ✗> Content Security Policy
+
+## Summary (per QA dimension)
 
 | Dimension | Status | Critical | Important | Minor |
 |---|---|---|---|---|
@@ -441,6 +629,7 @@ Append the verdict to the top of `audit/report.md` and the JSON file. Reproduce 
 | 10. Visual quality | ... | 0 | 0 | 0 |
 | 11. Performance | ... | 0 | 0 | 0 |
 | 12. Security & privacy | ... | 0 | 0 | 0 |
+| 13. HIPAA compliance | ... | 0 | 0 | 0 |
 
 ## Findings
 
@@ -507,6 +696,11 @@ CHECKS — all twelve dimensions ran
 [ ] 10. Visual quality
 [ ] 11. Performance & best practices
 [ ] 12. Security & privacy
+[ ] 13. HIPAA compliance
+SCORING
+[ ] Six grader-category scores computed (HIPAA 25%, A11y 20%, Perf 20%, SEO 20%, Usability 10%, Security 5%)
+[ ] Weighted total and letter grade computed
+[ ] Per-category check breakdown rendered with ✓ / ✗ matching grader labels verbatim
 BEST PRACTICES
 [ ] Best-practices heuristics ran and were captured as WARN-level findings
 REPORT

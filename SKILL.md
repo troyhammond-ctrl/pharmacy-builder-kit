@@ -117,7 +117,7 @@ If the source site is unreachable — DNS failure, HTTP 403, or blocked by `robo
 
 ### Always-built pages
 
-Every build must produce the following eight pages regardless of build-sheet flags:
+Every build must produce the following nine pages regardless of build-sheet flags:
 
 | URL | Page | Purpose |
 |---|---|---|
@@ -129,6 +129,17 @@ Every build must produce the following eight pages regardless of build-sheet fla
 | `/refill/` | Refill | Refill portal CTA wired to build-sheet URL; pickup methods copy |
 | `/transfer/` | Transfer | CTA + outbound link only — no PHI form |
 | `/faq/` | FAQ | Site-wide FAQs (expandable accordion); FAQPage JSON-LD schema |
+| `/privacy/` | Privacy | Notice of Privacy Practices (HIPAA-required) |
+
+**`/privacy/` page requirements (HIPAA Notice of Privacy Practices):**
+
+- Heading "Notice of Privacy Practices" (exactly this phrase, as `<h1>`).
+- Effective date, sourced from build sheet or set to the build date.
+- Pharmacy's Privacy Officer name (or "Privacy Contact") + phone + email — sourced from build sheet only; if absent, omit the name and use the pharmacy's main phone + email.
+- Sections covering: how PHI is used and disclosed (treatment, payment, healthcare operations); patient rights (inspect/copy record, request amendments, request restrictions, accounting of disclosures, confidential communications, file a complaint); pharmacy's right to amend the notice and how patients will be notified; how to file a complaint with the pharmacy AND with the U.S. Department of Health and Human Services Office for Civil Rights.
+- A working link to `https://www.hhs.gov/ocr/privacy/hipaa/complaints/` (verify HTTP 200 from the build environment if reachable; otherwise log the link as unverified to `/build/log.md`).
+- Plain language per §Voice — no banned phrasings.
+- Linked from the footer of every page with visible text containing "Privacy Policy" or "Notice of Privacy Practices."
 
 > **Transfer page is CTA + outbound link only — no PHI form.** Do not add any form that collects patient health information on the `/transfer/` page.
 
@@ -194,6 +205,19 @@ Each per-service detail page (one per Topics entry) follows this structure:
 ### Iconography rule
 
 Use one coherent icon set across the entire site (e.g., Lucide, Heroicons, or Phosphor). Pick one set and commit to it. The same icon set appears in the services grid cards and the header services dropdown — never mix two icon families. All icons must be rendered at a consistent size (approximately 24×24 px), use a single-stroke line style, and accept brand-color theming via `currentColor` so they inherit the text color of their container without hardcoded fill values.
+
+### Cookie consent banner
+
+Every site emits a compact, dismissible cookie consent banner on first visit when any non-essential cookie or storage is used (which is always true when the build-sheet `GA ID` is wired). Strict rules:
+
+- **Compact bottom banner.** Sticks to the bottom of the viewport at ≤ 80px tall on mobile, ≤ 64px on desktop. Never a center-screen modal. Never blocks content interaction beneath it — clicking through the banner area onto the page works.
+- **Plain-language copy.** "We use cookies to keep the site running and (when you allow it) to understand how visitors use it. You can accept all or reject non-essential." Plain prose; no banned phrasings; no marketing hyperbole; no fake "we value your privacy" affectation.
+- **Three controls,** all keyboard-reachable and ≥ 44×44 tap targets: **Accept all** (primary), **Reject non-essential** (secondary, equal visual weight), **Privacy Policy** (text link to `/privacy/`).
+- **Reject must actually suppress.** Until the user clicks Accept, analytics cookies (including the GA ID's `_ga` / `_gid` cookies) must not be set. Use a consent gate around the GA `<script>` injection — load the snippet only after Accept; remove cookies on Reject.
+- **Persist the choice** in `localStorage` under a non-identifying key (e.g., `cookie-consent`) with values `accepted` / `rejected`. Never store a value tied to a patient identifier. Re-prompt only if the value is missing.
+- **Accessible.** `role="region"` with `aria-label="Cookie consent"`. Banner controls have visible focus. Banner does not trap focus (users can ignore it and use the rest of the site without dismissing it — content remains clickable).
+
+The cookie consent banner is the only banner-style overlay allowed on the site. No newsletter pop-ups, no exit-intent modals, no promotional interstitials — see §Conversion.
 
 ### Mobile navigation
 
@@ -338,7 +362,7 @@ When any design skill needs a stack signal, default to React + Tailwind + shadcn
 - **Iconography.** Pro-max picks one icon set per §Required sections › Iconography rule. Neither huashu-design nor Impeccable may swap sets or mix families during their refinement passes.
 - **Typography.** Pro-max picks one of its font pairings. Body sans-serif must support the 8th-grade readability target in §Voice; display fonts must remain accessible at the sizes used. No ornamental display fonts for body content, even if huashu-design or Impeccable suggests otherwise.
 - **Dark mode.** Ship dark mode only if all three skills can collectively produce one without breaking WCAG AA contrast against the brand color. If brand color cannot satisfy AA on a dark background, ship light mode only and log the decision in `/build/log.md`. Never force a degraded dark mode.
-- **Responsive and mobile-first.** Every skill's output must pass on phone, tablet, and desktop breakpoints. The sticky header must not trap focus or scroll on mobile (see §Required sections › Mobile navigation).
+- **Responsive and mobile-first.** Every skill's output must pass on phone, tablet, and desktop breakpoints. The sticky header must not trap focus or scroll on mobile (see §Required sections › Mobile navigation). The CSS must include: a global `*, *::before, *::after { box-sizing: border-box; }` reset; at least one `@media` query (mobile-first breakpoints typically at 640px, 768px, 1024px, 1280px); a body font-size ≥ 16px on mobile (iOS auto-zooms inputs with smaller sizes); explicit `width` and `height` attributes (or aspect-ratio CSS) on every image to prevent layout shift. No horizontal scroll at 320px viewport — confirm `document.documentElement.scrollWidth <= window.innerWidth` at 320px.
 - **Conversion contract.** None of the three skills may override §Conversion: the sticky bottom mobile CTA bar, the action priority (Call > Refill > Transfer > Portal), above-the-fold rules, and the click-to-call wiring stand regardless of design preference.
 
 ### Review passes
@@ -555,6 +579,43 @@ Include the minimal Twitter card set:
 - `<meta charset="UTF-8">` — must appear first inside `<head>`
 - `<meta name="viewport" content="width=device-width, initial-scale=1">` — required for mobile rendering
 - `<meta name="theme-color" content="...">` — set to the pharmacy brand color (hex)
+
+### Security headers (server config)
+
+The generated site must be served with these HTTP response headers on every HTML response. If the deployment target supports `_headers` (Netlify, Cloudflare Pages), `_redirects`, `vercel.json`, or `next.config.js` `headers()`, write the appropriate config file alongside the build output:
+
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (2 years, includeSubDomains; submit to the HSTS preload list separately).
+- `Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` (adjust the GA / fonts hosts to match what's actually loaded; tighten by replacing `'unsafe-inline'` with nonces or hashes when feasible).
+- `X-Content-Type-Options: nosniff`.
+- `X-Frame-Options: SAMEORIGIN` (redundant with CSP `frame-ancestors` but required for older browsers).
+- `Referrer-Policy: strict-origin-when-cross-origin`.
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()` (pharmacy site needs none of these — deny all).
+- `Cache-Control: public, max-age=31536000, immutable` on hashed static assets; `Cache-Control: public, max-age=300, must-revalidate` on HTML pages.
+
+For Replit Deployments static sites, write a `_headers` file at the project root. For other hosts, write the equivalent config and document the choice in `/build/log.md`.
+
+### Performance budget
+
+Every generated page must hit these Lighthouse-mobile targets (run Lighthouse against the rendered output during validation):
+
+- Performance score ≥ 90 (target); ≥ 85 acceptable; < 80 is a build failure.
+- Largest Contentful Paint (LCP) ≤ 2.5s.
+- Cumulative Layout Shift (CLS) ≤ 0.1.
+- First Contentful Paint (FCP) ≤ 1.8s.
+- Speed Index ≤ 3.4s.
+- Total Blocking Time (TBT) ≤ 200ms.
+- Time to Interactive (TTI) ≤ 3.8s.
+
+To hit these:
+
+- Hero image: serve in AVIF or WebP with a JPG fallback, ≤ 200 KB, dimensions ≤ 1600×900, `loading="eager" fetchpriority="high"`.
+- All other images: `loading="lazy"`, modern format with fallback, explicit `width` / `height`.
+- Fonts: preload critical font; use `font-display: swap`; subset if possible.
+- JavaScript: minimize and tree-shake; defer non-critical scripts; avoid render-blocking third parties above the fold.
+- CSS: critical CSS inlined into `<head>` for the home page if practical; rest deferred.
+- HTTP/2 or HTTP/3 enabled at the host; gzip or Brotli compression enabled.
+
+If a page misses any threshold, the agent must iterate (compress images, defer scripts, etc.) before declaring the build done. Log the final Lighthouse scores per page to `/build/log.md`.
 
 ### Site-wide files
 
@@ -1039,6 +1100,11 @@ SEO + SCHEMA
 [ ] Above-the-fold on mobile: name + tagline + Refill CTA + tel: link + open-now indicator all visible without scroll
 [ ] Every phone number wrapped in <a href="tel:+1..."> with +1 prefix; every email in mailto: link
 [ ] No carousel hero, no exit-intent modals, no auto-play media, no "Click here" / "Learn more" CTA copy
+[ ] /privacy/ page exists with HIPAA Notice of Privacy Practices; linked from footer of every page
+[ ] Cookie consent banner: compact, dismissible, Accept All + Reject Non-Essential + Privacy Policy link; analytics suppressed until Accept
+[ ] CSS: box-sizing: border-box reset; >= 1 @media query; body font-size >= 16px on mobile; no horizontal scroll at 320px
+[ ] Security headers: HSTS (2yr+), CSP with frame-ancestors, X-Content-Type-Options nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy denying camera/mic/geo/payment
+[ ] Lighthouse mobile: Performance >= 85; LCP <= 2.5s; CLS <= 0.1; FCP <= 1.8s; Speed Index <= 3.4s; TBT <= 200ms — logged per page
 [ ] MobileApplication JSON-LD only when app page exists
 [ ] Schema validates (parse + required props)
 CONTENT GUARDRAILS

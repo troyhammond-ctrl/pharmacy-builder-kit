@@ -50,4 +50,31 @@ assert_contains "## Information" "11-seo:llms-information-section"
 assert_contains "## Optional" "11-seo:llms-optional-section"
 assert_contains "Required blockquote" "11-seo:llms-blockquote-required"
 
+# Security headers (server config)
+assert_contains "Security headers" "11-seo:security-headers-section"
+assert_contains "Strict-Transport-Security" "11-seo:hsts"
+assert_contains "max-age=63072000" "11-seo:hsts-2yr"
+assert_contains "includeSubDomains" "11-seo:hsts-subdomains"
+assert_contains "Content-Security-Policy" "11-seo:csp"
+assert_contains "frame-ancestors" "11-seo:csp-frame-ancestors"
+assert_contains "X-Content-Type-Options: nosniff" "11-seo:xcto"
+assert_contains "X-Frame-Options: SAMEORIGIN" "11-seo:xfo"
+assert_contains "Referrer-Policy: strict-origin-when-cross-origin" "11-seo:referrer-policy"
+assert_contains "Permissions-Policy" "11-seo:permissions-policy"
+assert_contains "camera=()" "11-seo:permissions-camera-denied"
+
+# Performance budget (Lighthouse targets)
+assert_contains "Performance budget" "11-seo:perf-budget-section"
+assert_contains "Performance score ≥ 90" "11-seo:perf-lighthouse-target"
+assert_contains "LCP) ≤ 2.5s" "11-seo:perf-lcp"
+assert_contains "CLS) ≤ 0.1" "11-seo:perf-cls"
+assert_contains "FCP) ≤ 1.8s" "11-seo:perf-fcp"
+assert_contains "Speed Index ≤ 3.4s" "11-seo:perf-speed-index"
+assert_contains "TBT" "11-seo:perf-tbt"
+
+# CSS responsiveness rules in Visual design
+assert_contains "box-sizing: border-box" "11-seo:css-box-sizing-builder"
+assert_contains "font-size ≥ 16px" "11-seo:css-font-min-builder"
+assert_contains "320px viewport" "11-seo:css-320-builder"
+
 pass "11-seo"
