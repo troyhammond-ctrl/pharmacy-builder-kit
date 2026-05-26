@@ -59,6 +59,8 @@ Extract every field listed below. Mark absent fields `null` with a `nullReason`.
 - **pickup methods** (drives `/refill/` copy)
 - **Additional locations** flag (yes/no)
 - **Social links** (if present)
+- **Reviews URL** (Google Business Profile review-submission URL, Yelp review URL, Healthgrades review URL, or equivalent; powers the home page "Leave a Review" CTA per §Required sections › Home only)
+- **App-vs-Portal directive** (optional free-text field in Additional Site Notes; resolves the App-vs-Patient-Portal rule when both options would otherwise apply)
 
 ### Conditional flags
 
@@ -91,6 +93,7 @@ Write and run `tools/scrape.mjs`. The skill defines the contract; Replit Agent o
 - **Seed:** use the `Website URL` from the build sheet (the existing live site, not the staging URL).
 - **Crawl rules:** same-origin only; depth ≤ 3; max 200 pages; rate-limit to 1 req/sec; send a descriptive User-Agent string; respect the source site's `robots.txt`; skip `mailto:`, `tel:`, anchor-only links, and tracker or CDN hosts.
 - **Asset capture:** collect every `<img>`, `<source>`, `<video>`, and any `<a href>` pointing to `.pdf`, `.docx`, `.mp4`, `.webm`, or image extensions. Download each file to `/scraped/assets/` using collision-safe filenames that preserve the original name where possible.
+- **Pharmacy imagery discovery (focused pass).** Beyond the page-asset capture above, run a focused pass to find real photographs of THIS pharmacy. Sources, in order: (a) image-heavy pages on the source site (homepage, about, team, gallery); (b) the `og:image` of each scraped page; (c) the Google Business Profile / Maps listing reachable from the build-sheet `Google Map URL` — fetch the listing's public photos if accessible. Classify each captured image into `interior`, `exterior`, `team`, `product`, `logo`, or `other` and record the classification in the asset manifest. These classifications drive §Image policy's sourcing priority and the "exterior shots must be real" rule.
 - **Content capture:** save each crawled page as raw HTML at `/scraped/raw/<slug>.html` and as a reader-mode markdown extraction at `/scraped/text/<slug>.md` for LLM consumption.
 
 ### Manifest
@@ -165,9 +168,24 @@ Every page carries four structural zones in this order: top bar, sticky header, 
 
 **Top bar** — a slim bar above the header. Display the pharmacy address, phone number, and hours summary. Include an open-now indicator: derive the pharmacy's IANA timezone (e.g., `America/Los_Angeles`) from the build-sheet address (city and state) — not from the visitor's browser. Use `Intl.DateTimeFormat` with that explicit `timeZone` argument to convert `Date.now()` into the pharmacy's local time, then compare against the open hours parsed from the build-sheet `Hours:` field. Never use the visitor's browser timezone as a proxy for the pharmacy's time, and never hard-code UTC offsets. If JavaScript is disabled the indicator falls back to the text "Open/Closed unavailable" — it never invents a status it cannot confirm.
 
-**Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/`), primary nav with a services dropdown that lists every service topic, and three CTAs in this order: Refill, Transfer, Patient Portal. The header never wraps to a second row at desktop widths. **The header collapses to a mobile menu below the `1024px` breakpoint (Tailwind `lg`) — see §Required sections › Mobile navigation for the drawer contract.**
+**Sticky header** — fixed to the top of the viewport on scroll. Contains: logo (linked to `/` — this IS the home link, so the primary nav never includes a separate "Home" item), primary nav (About, Services dropdown, Contact, FAQ — never "Home"), and three primary CTAs. The third CTA is determined by the App-vs-Portal rule below; the order is always Refill, Transfer, then either Mobile App or Patient Portal. The header never wraps to a second row at desktop widths. **The header collapses to a mobile menu below the `1024px` breakpoint (Tailwind `lg`) — see §Required sections › Mobile navigation for the drawer contract.**
 
-**Footer** — contains: full address, phone, fax, email, business hours, social links (only if scraped or present in build sheet), NPI and license numbers (only if found in source material — never fabricated), copyright line, accessibility statement link, and a sitemap link. Omit any footer field whose value is not available in the build context.
+**App vs Patient Portal — pick exactly one (never both).** The build sheet drives the choice. Apply this rule across the entire site (sticky header CTA, mobile drawer CTA, sticky bottom mobile CTA bar, footer, llms.txt, schema):
+
+- If `Requires Mobile App Page: Yes` → the third CTA is "Get the App" linking to `/app/`. The site does NOT surface a Patient Portal CTA anywhere, even if a `Patient Portal URL` is present in the build sheet (the field is recorded in context.json but unused for CTA wiring). The `/app/` page is built.
+- If `Requires Mobile App Page: No` AND `Patient Portal URL` is present → the third CTA is "Patient Portal" linking to that URL. The `/app/` page is NOT built and Apple/Google badges do NOT appear anywhere.
+- If both `Requires Mobile App Page: Yes` AND the build sheet contains an explicit "show portal" or "show app" directive in the Additional Site Notes / Instructions field → follow the build-sheet directive verbatim; log the resolution to `/build/log.md`.
+- If neither is provided → the site has only Refill + Transfer CTAs; no third CTA is invented. Log the omission.
+
+**Logo specification.**
+
+- **Format:** SVG preferred (scales without loss). PNG with transparent background acceptable. JPG only if no transparent-background source exists; place against a brand-color or white background.
+- **Header logo:** rendered at minimum 32px tall and maximum 64px tall, scaled proportionally. If the supplied logo is below 32px even at its native size, scale up with crisp rendering (`image-rendering: -webkit-optimize-contrast`) and log a quality warning.
+- **Footer logo:** ALWAYS renders on every page. Minimum 24px tall, maximum 48px tall. Footer logo must never be omitted, even when the page is content-sparse. If the logo image fails to load (404, broken file), the footer falls back to the pharmacy name rendered in the brand color at the same baseline size — never an empty placeholder.
+- **Alt text:** matches the §Accessibility pattern `<Pharmacy Name> logo`.
+- **Brand-color preservation:** never recolor or filter the logo. If the build sheet supplies a single logo file that doesn't work against the chosen header/footer background, request a variant or use the supplied logo with a thin padded container — do not tint or invert the artwork.
+
+**Footer** — contains: pharmacy logo (always renders per the Logo specification above), full address, phone, fax, email, business hours, social links (only if scraped or present in build sheet), NPI and license numbers (only if found in source material — never fabricated), copyright line, accessibility statement link, privacy policy link, and a sitemap link. Omit any footer field whose value is not available in the build context, EXCEPT the logo, which always renders (falling back to the pharmacy name in brand color if the image fails).
 
 **FAQs** — every page includes a FAQ section near the bottom, scoped to the page's topic, drawn from the build sheet and scrape corpus. Include a `FAQPage` JSON-LD block for each FAQ section — see §Schema (JSON-LD).
 
@@ -175,12 +193,13 @@ Every page carries four structural zones in this order: top bar, sticky header, 
 
 The home page body contains the following sections in order:
 
-1. **Hero** — full-width banner using the build-sheet tagline and a primary CTA (Refill or Transfer, whichever is primary per the build sheet). Background image sourced from scraped or provided assets; never use stock photography placeholders.
+1. **Hero** — full-width banner using the build-sheet tagline and a primary CTA (Refill or Transfer, whichever is primary per the build sheet). **The hero image must depict a pharmacist serving a patient** — a person in a pharmacist's coat handing a prescription bag, counseling a patient at the counter, administering an immunization, or a similar trust-building, patient-centered scene. Background image sourcing follows §Image policy: real photo from the build folder or scrape preferred; if none, an AI-generated representative image is acceptable (because it is a generic patient-care scene, not an exterior shot). Never use a generic "happy stock person" photo, a pile of pills, or an exterior storefront in the hero.
 2. **Services grid** — card grid for every service (Topics + List). Each card has its own icon drawn from a single coherent icon set, line style, approximately 24×24 px, single-stroke, and recolorable via `currentColor`. The same icon set is reused in the header services dropdown — never mix sets.
-3. **Hours of operation** — a semantic `<table>` listing every open day and its hours exactly as written in the build sheet.
+3. **Hours of operation** — a semantic `<table>` listing every open day and its hours. Format hours as `9:00 AM – 5:00 PM` (12-hour clock with leading zeros on minutes, uppercase `AM`/`PM` with no periods, en-dash or hyphen separator surrounded by single spaces). Never abbreviate to `9 AM – 5 PM`, never use `a.m.` / `p.m.` with periods, never use 24-hour format. Closed days render as "Closed" — not blank or "—".
 4. **Trust callouts** — brief value statements (locally owned, years in business, etc.). No comparative claims ("best," "only," "most").
-5. **Testimonials** — patient or customer quotes from the build sheet or scrape. Testimonials are omitted if no source material exists — never fabricated. Redact any PHI.
-6. **App download row** — only if `Requires Mobile App Page: Yes` is set in the build sheet. Include real Apple App Store and Google Play badges wired to the URLs from the build sheet.
+5. **Reviews** — 3 to 6 review cards sourced from Google Reviews, Yelp, Healthgrades, or the build sheet's review-platform field. Each card shows the reviewer's first name + last initial (e.g., "Maria S."), star rating (only if real), date if present, and the review text. Card style is consistent with the visual design. Below the cards, render a CTA **"Leave a Review"** linking to the pharmacy's Google Business Profile / Yelp / Healthgrades review-submission URL (sourced from the build sheet's `Reviews URL` / `Google Review URL` field). If no review-platform URL is in the build sheet, the CTA falls back to "Call us at `<phone>` to share your experience" linking via `tel:`. If no real review data exists, omit the cards but keep the "Leave a Review" CTA — never fabricate reviews.
+6. **Testimonials** — short patient or customer quotes from the build sheet or scrape (distinct from platform-sourced reviews). Each is a `<blockquote>` with `<cite>` for attribution. First name + last initial only. Omitted if no source material exists — never fabricated. Redact any PHI.
+7. **App download row** — only if `Requires Mobile App Page: Yes` is set in the build sheet AND the App-vs-Portal rule selects the app. Include real Apple App Store and Google Play badges wired to the URLs from the build sheet. If the App-vs-Portal rule selected Patient Portal, this row is omitted entirely.
 
 ### Contact only
 
@@ -188,8 +207,8 @@ The contact page body contains:
 
 - Clickable address (links to the Google Maps entry), clickable phone, fax, and email.
 - Map embed: construct the embed URL from the build sheet `Google Map URL` field. Render a "Get directions" link that opens the Google Maps URL in a new tab (`target="_blank" rel="noopener noreferrer"`).
-- No contact form — the contact page does not collect any patient data.
-- Full hours of operation table (same as home).
+- **No contact form by default.** The contact page does not collect any patient data. Do not add a form, even a "name + email + message" form, unless the build sheet explicitly requests one with a non-PHI purpose (e.g., a B2B vendor inquiry form). When the build sheet does request one, the form must satisfy: no PHI fields (no DOB, Rx number, medications, conditions, MRN, member ID); a visible HIPAA disclaimer above the submit control with the exact text "Do not submit Protected Health Information through this form. For prescription transfers, refills, or anything involving your medications, call us at `<phone>`."; bot protection (hCaptcha / reCAPTCHA / Cloudflare Turnstile invisible or honeypot); accessible labels per §Accessibility.
+- Full hours of operation table (same as home, same `9:00 AM – 5:00 PM` format).
 - FAQs scoped to location and access questions.
 
 ### Per-service page
@@ -197,10 +216,31 @@ The contact page body contains:
 Each per-service detail page (one per Topics entry) follows this structure:
 
 - **H1 = service name** — exactly as written in the build sheet Topics list; do not rename or abbreviate.
+- **A header image is required on every service page.** Image sourcing priority per §Image policy: 1) build folder image whose filename references the service; 2) scraped image classified as relevant to the service; 3) AI-generated representative image (interior/clinical/product scenes only — never an exterior shot); 4) stock photo from Unsplash, downloaded locally per §Image policy. Image is displayed at the top of the page above the H1 or as a hero band behind the H1, with object-fit cover, accessible alt text describing the service action (e.g., "Pharmacist administering a flu shot").
 - Verbatim build-sheet description copy followed by any additional detail sourced from the scrape.
 - For the Immunizations service: include a list labeled **Immunization Options** reproducing the build sheet `immunization options` field exactly — never extend or supplement this list with vaccines not explicitly listed in the build sheet.
 - A CTA appropriate to the service (e.g., "Schedule Now," "Request a Refill") — wire to the correct portal URL.
 - FAQs scoped to that service's topic.
+
+### Image policy
+
+Every page must use real-looking, brand-appropriate imagery. The site never ships with empty image placeholders, broken images, or obviously generic stock-photo clichés.
+
+**Sourcing priority (apply in order; use the first source that produces a usable image):**
+
+1. **Build folder.** Any image file in the build folder whose name or context references the page's subject.
+2. **Scrape.** Images captured during §Scrape from the pharmacy's existing live site or its Google Business Profile / Maps listing (when reachable from the build-sheet `Google Map URL`). Real interior, staff, and exterior photos take priority over generic banner art.
+3. **AI-generated.** Acceptable for representative scenes (pharmacist counseling a patient, a hand passing a prescription, an immunization shot, an interior counter view) — **never** for an exterior storefront of THIS pharmacy, which is misleading. When an AI image is used, log the prompt and the model to `/build/log.md` so the image's provenance is auditable.
+4. **Unsplash (stock).** Acceptable as the last fallback for service pages and supporting imagery. **Download every Unsplash image locally** — do not hotlink. Save the file under `public/images/stock/<slug>.<ext>` (or the project's static directory) and reference the local path. Per Unsplash license, include the photographer attribution either in the page footer ("Photo by `<photographer>` on Unsplash") or in the image's `alt` / `figcaption` if used in editorial context. Never use Unsplash images of identifiable individuals as if they were the pharmacy's staff.
+
+**Hard rules across all sources:**
+
+- **Hero on the home page must depict a pharmacist serving a patient.** Not a pile of pills, not an empty pharmacy interior, not a generic "happy senior couple," not the storefront. The hero is the trust-establishing image of the whole site.
+- **Exterior shots must be real.** If the page or section uses an exterior shot of the pharmacy, it must come from the build folder or the scrape — never AI-generated, never stock. An AI-generated or stock "exterior" of a fictional pharmacy misrepresents the actual location.
+- **No image-only text** for substantive content (per §Accessibility).
+- **Alt text** follows the object + context pattern (per §Accessibility) and describes the scene, not the source ("Pharmacist counseling a patient at the pharmacy counter" — not "Stock photo of a pharmacist").
+- **File format and weight:** AVIF or WebP preferred with a JPG fallback; ≤ 200 KB per hero image, ≤ 100 KB per service-page header image. Explicit `width` and `height` to prevent layout shift (per §Visual design responsive constraint).
+- **Catalog every image** the build uses, with its source (`build_folder | scrape | ai_generated | unsplash`), local path, alt text, and (for Unsplash) the photographer credit, to `/build/image-manifest.json`. This is the audit trail.
 
 ### Iconography rule
 
@@ -231,9 +271,9 @@ Drawer contract:
 - **Contents, in this order:**
   1. A close button (X icon, `aria-label="Close menu"`, ≥ 44×44 tap target) as the **first focusable element** in the drawer.
   2. Logo and pharmacy name (linked to `/`).
-  3. Primary nav links. Each link is a full-width row, ≥ 48px tall, with 12px+ vertical padding for comfortable tap targets.
+  3. Primary nav links (About, Contact, FAQ — **never "Home"**; the logo at the top of the drawer is the home link). Each link is a full-width row, ≥ 48px tall, with 12px+ vertical padding for comfortable tap targets.
   4. Services subnav as an **expandable disclosure group** (a heading "Services" + a button that toggles a nested list with `aria-expanded`) — NEVER a hover dropdown. Each service is a full-width row.
-  5. The three primary CTAs (Refill, Transfer, Patient Portal) styled as full-width filled buttons stacked vertically with 8–12px spacing between.
+  5. The three primary CTAs (Refill, Transfer, and then EITHER "Get the App" linking to `/app/` OR "Patient Portal" linking to the portal URL — never both, per the App-vs-Portal rule above) styled as full-width filled buttons stacked vertically with 8–12px spacing between.
   6. Click-to-call phone CTA: `<a href="tel:+1<10digits>">Call (XXX) XXX-XXXX</a>` styled as a full-width outlined button.
   7. Hours summary block (today's hours, the open-now indicator state).
 - **Focus management.** When the drawer opens, focus moves to the close button. Tab cycles within the drawer (focus trap — implement with a sentinel or a focus-trap library). Esc closes the drawer and returns focus to the hamburger.
@@ -260,7 +300,7 @@ The patient actions, in priority order:
 1. **Call** — a `tel:` link with the visible phone number in the top bar, in the mobile menu drawer, in the footer, and on the contact page. On mobile, calling outranks every other action.
 2. **Refill** — primary CTA in the home hero, primary CTA on every service page where refilling is in scope, and one of the three sticky-header CTAs site-wide.
 3. **Transfer** — secondary CTA in the home hero and present in the sticky header. Outbound link only (no PHI form per §PHI rules).
-4. **Patient Portal** — present in the sticky header but visually secondary; useful for returning patients, not for first-time acquisition.
+4. **Mobile App OR Patient Portal** (exactly one — see §Required sections › Sticky header › App vs Patient Portal). Present in the sticky header but visually secondary; useful for returning patients, not for first-time acquisition. The site never surfaces both; the build sheet determines which one renders.
 
 ### Above-the-fold (mobile and desktop)
 

@@ -194,6 +194,18 @@ qa_assert_contains "[ ] 12. Security & privacy" "18-qa:closing-security"
 qa_assert_contains "[ ] 13. HIPAA compliance" "18-qa:closing-hipaa"
 qa_assert_contains "[ ] Six grader-category scores computed" "18-qa:closing-scores"
 qa_assert_contains "[ ] Weighted total and letter grade computed" "18-qa:closing-weighted"
+
+# Imagery and layout audit block
+qa_assert_contains "Imagery and layout audit" "18-qa:imagery-section"
+qa_assert_contains "pharmacist serving a patient" "18-qa:audit-hero-pharmacist"
+qa_assert_contains "header image" "18-qa:audit-service-header"
+qa_assert_contains "no hotlinks" "18-qa:audit-no-hotlinks"
+qa_assert_contains "fabricated-exterior-shot" "18-qa:audit-fab-exterior"
+qa_assert_contains "9:00 AM – 5:00 PM" "18-qa:audit-hours-canonical"
+qa_assert_contains "Footer logo renders on EVERY page" "18-qa:audit-footer-logo"
+qa_assert_contains "App vs Portal exclusivity" "18-qa:audit-app-vs-portal"
+qa_assert_contains "Leave a Review" "18-qa:audit-leave-review"
+qa_assert_contains 'must NOT contain a "Home" link' "18-qa:audit-no-home-nav"
 qa_assert_contains "Audit complete" "18-qa:closing-complete"
 
 # Genericity — no pharmacy-specific leakage into the QA skill either

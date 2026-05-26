@@ -40,12 +40,14 @@ Confirm every required page exists, returns HTTP 200, and contains the required 
 
 - **Always-built pages:** `/`, `/about/`, `/contact/`, `/services/`, `/services/<slug>/` (one per Topic), `/refill/`, `/transfer/`, `/faq/`. Each must return HTTP 200 with non-empty body. Trailing slashes must be honored (either by URL or by 301 redirect to canonical form).
 - **Conditional pages:** `/app/` exists iff the build sheet has `Requires Mobile App Page: Yes`. `/locations/` + `/locations/<slug>/` exist iff `Additional locations: Yes`. Any extra discovered pages must be ≥ 150 substantive words and not a contact/hours rehash.
-- **Per-page required sections:** sticky header, top bar, page body, footer, FAQs near the bottom. Each present in DOM and visible.
-- **Home-only sections:** hero, services grid, hours of operation table, trust callouts, testimonials (or omitted if no source), app download row (conditional).
-- **Contact-only sections:** clickable address/phone/fax/email, map embed, "Get directions" link, hours, FAQs. NO contact form.
-- **Per-service-page sections:** single H1 = service name, build-sheet description verbatim, scoped FAQs, appropriate CTA.
+- **Per-page required sections:** sticky header (logo as home link, primary nav with no "Home" item, three CTAs), top bar, page body, footer (logo always rendered), FAQs near the bottom. Each present in DOM and visible.
+- **Home-only sections:** hero (must depict a pharmacist serving a patient), services grid, hours of operation table (in `9:00 AM – 5:00 PM` format), trust callouts, reviews with "Leave a Review" CTA, testimonials (or omitted if no source), app download row (conditional — present only if App-vs-Portal rule selected the app).
+- **Contact-only sections:** clickable address/phone/fax/email, map embed, "Get directions" link, hours, FAQs. **No contact form by default** (if present, must satisfy the HIPAA disclaimer + bot protection + no-PHI fields rules).
+- **Per-service-page sections:** single H1 = service name, **a header image is present** (sourced per §Image policy in the builder contract — never a broken image, never an empty placeholder), build-sheet description verbatim, scoped FAQs, appropriate CTA.
+- **App-vs-Portal exclusivity:** the site shows either App CTAs (header, drawer, app page) OR Patient Portal CTAs — never both. If both surfaces appear, this is a Critical finding (`pages.app-and-portal-both`).
+- **No "Home" in primary nav.** The logo is the home link. A nav containing a "Home" item is a Minor finding (`pages.nav-redundant-home`).
 
-Findings reference: `pages.missing`, `pages.empty`, `pages.section-missing`, `pages.unauthorized-form`.
+Findings reference: `pages.missing`, `pages.empty`, `pages.section-missing`, `pages.unauthorized-form`, `pages.app-and-portal-both`, `pages.nav-redundant-home`, `pages.hero-not-pharmacist-patient`, `pages.service-image-missing`, `pages.hotlinked-stock-image`, `pages.fabricated-exterior-shot`, `pages.hours-format-invalid`, `pages.footer-logo-missing`, `pages.logo-too-small`.
 
 ### 2. Accessibility (WCAG 2.2 AA)
 
@@ -445,6 +447,44 @@ Findings reference: `usability.no-viewport-meta`, `usability.no-media-queries`, 
 - **Permissions Policy.** `Permissions-Policy` header (or `Feature-Policy` legacy name) restricts unused browser features (camera, microphone, geolocation, USB, payment). The pharmacy site needs none of those; the policy should deny them all. Missing = Minor (defense in depth).
 
 Findings reference: `sec.no-clickjacking-protection`, `sec.no-sri-on-external-script`, `sec.no-permissions-policy`, `sec.no-bot-protection`.
+
+## Imagery and layout audit
+
+In addition to the dimension-by-dimension checks, every audit runs these focused image, logo, hours, and nav checks. Findings roll into Dimension 1 (Pages & structure) for the score rubric.
+
+**Hero image.**
+
+- The home-page hero must depict a pharmacist serving a patient. Verify by visual inspection or vision-model classification of the hero image. Stock photography of generic happy seniors, pill bottles on a counter, or an exterior storefront fails this check (Critical for the home page hero specifically). The hero is the trust signal; getting it wrong is high-impact.
+
+**Service page images.**
+
+- Every per-service page has a header image. Missing = Important (`pages.service-image-missing`).
+- Images are served from the same origin — no hotlinks to Unsplash CDN, Google CDN, or any third-party image host (Important `pages.hotlinked-stock-image`). Check by inspecting every `<img src>` and confirming the host matches the audit base origin.
+- Unsplash images include photographer attribution somewhere on the page (footer or near the image). Missing attribution on a known-stock image is Minor.
+- AI-generated exterior shots of the pharmacy: flag any image classified as `exterior` whose provenance in `build/image-manifest.json` is `ai_generated` — Critical (`pages.fabricated-exterior-shot`).
+
+**Hours format.**
+
+- Every rendered hours string matches the pattern `H:MM AM – H:MM PM` (12-hour clock, leading zeros on minutes, uppercase AM/PM with no periods, en-dash or hyphen separator surrounded by single spaces). Specifically reject: `a.m.` / `p.m.` lowercase with periods; single-digit hours without minutes (`9 AM`); 24-hour format (`09:00`); missing leading zero on minutes (`9:0 AM`); missing separator. Each violation = Important (`pages.hours-format-invalid`).
+
+**Logo rendering.**
+
+- Footer logo renders on EVERY page (not just home). Missing on any page = Important (`pages.footer-logo-missing`).
+- Header logo computed height between 32px and 64px on desktop; between 28px and 56px on mobile. Below the floor = Important (`pages.logo-too-small`); above the ceiling = Minor.
+- Logo is the home link. Clicking the logo navigates to `/` or the base URL. The logo's `<a>` wrapper must have an accessible name (alt text on the inner `<img>` satisfies this if the parent is the only link).
+- Header primary nav must NOT contain a "Home" link. Detect by scanning the `<header>` `<nav>` for any link whose visible text is "Home" or whose `href` is `/`. Either is Minor.
+
+**App vs Portal exclusivity.**
+
+- Scan every page for "Patient Portal" CTAs and "Get the App" / Apple App Store / Google Play badges. The site uses one set or the other, never both. Both = Critical.
+- Cross-check with `build/context.json`: if `Requires Mobile App Page: Yes`, the site must surface App CTAs and the `/app/` page must exist; if no, the site must surface Patient Portal CTAs (when `Patient Portal URL` is present) and no `/app/` page exists.
+
+**Reviews section.**
+
+- The home page contains a Reviews section with at least one "Leave a Review" CTA. Missing = Important.
+- The "Leave a Review" CTA's `href` matches the build-sheet `Reviews URL` field exactly (when present). Mismatch = Important.
+- Review cards (when rendered) use first name + last initial; full last names are flagged as a privacy-best-practice issue = Minor (`pages.review-full-name`).
+- No fabricated reviews: every review card's text and reviewer name must trace to a real source (build sheet, scrape, or named review platform). Fabrication = Critical (rolls into Dimension 8 too).
 
 ## Best practices
 
