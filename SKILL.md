@@ -61,6 +61,13 @@ Extract every field listed below. Mark absent fields `null` with a `nullReason`.
 - **Social links** (if present)
 - **Reviews URL** (Google Business Profile review-submission URL, Yelp review URL, Healthgrades review URL, or equivalent; powers the home page "Leave a Review" CTA per §Required sections › Home only)
 - **App-vs-Portal directive** (optional free-text field in Additional Site Notes; resolves the App-vs-Patient-Portal rule when both options would otherwise apply)
+- **Build origin** (`new` | `rebuild`) — `new` when the operator submitted a jotform build sheet for a new site; `rebuild` when the input is a scrape of an existing live site. Drives the §Content variation policy.
+- **Content-edited flags** — per-section booleans sourced from the jotform's "I have customized this content" indicators:
+  - `About content edited` (yes/no)
+  - `Hero tagline edited` (yes/no)
+  - `Services content edited` (yes/no — applies to per-service Topics description copy)
+  - `FAQ content edited` (yes/no)
+  - `Content edited (overall)` (yes/no, fallback when section-specific flags are absent in the build sheet)
 
 ### Conditional flags
 
@@ -423,6 +430,55 @@ Do not declare design done until **all of**: the §Accessibility validator passe
 - Warm but not casual. Friendly, not flippant. Professional tone that reassures; never breezy, sarcastic, or colloquial.
 - Practical: tell the patient what to do, where to go, and what to expect. Every paragraph should answer one of: what is this, how do I get it, what happens next.
 - local-color claims — community, neighborhood, family-owned, independent — are allowed only if backed by the build sheet or scrape corpus. Apply the same test to every local-color claim: if there is no source, omit the claim.
+
+## Content variation policy
+
+This policy applies only to **new builds** (`Build origin: new` — operator submitted a jotform build sheet). **Rebuilds** (`Build origin: rebuild` — input is a scrape of an existing live site) skip this policy entirely; the live site is the source of truth and is treated as fully edited content.
+
+**The problem this solves.** The jotform build sheet ships with default template text in the About, Hero tagline, per-service description, and FAQ fields. Many operators submit without customizing those defaults. If the agent uses the default text verbatim across multiple pharmacies, every site reads identically — bad for SEO (duplicate-content penalties), bad for trust (the copy doesn't sound like the pharmacy), and bad for the operator.
+
+### Detecting edited vs unedited content
+
+For each section field, treat the content as **unedited (default)** when ANY of these is true:
+
+- The build sheet's section-specific edited flag is set to `no` (`About content edited: No`, `Hero tagline edited: No`, etc.).
+- The section-specific flag is absent AND the global `Content edited (overall)` flag is `no`.
+- All flags are absent AND the submitted text exactly matches a known jotform default-template phrase (the agent maintains a small list of known defaults in `tools/default-templates.json` for comparison — every phrase added to the jotform default text should be appended here).
+
+Treat as **edited (operator-written)** otherwise — including when the operator wrote text that is similar but not identical to a default template phrase. When in doubt, default to edited.
+
+### Behavior
+
+- **Edited content:** use verbatim. Do not paraphrase, do not "improve" the prose. Pass through `tools/validate-content.mjs` for guardrails (banned phrasings, PHI, clinical advice, factual fabrication) and §Voice (readability target). Operator-written content that fails validation is logged to `/build/log.md` and the operator is asked to revise — never silently rewrite operator copy.
+- **Unedited content (use AI variation):** pass the default source text plus the build sheet's facts (pharmacy name, city, services, hours, year opened, etc.) to an AI variation step. The variation produces unique, voice-compliant copy for THIS pharmacy that satisfies every rule below.
+
+### AI variation rules
+
+A generated variation MUST satisfy ALL of:
+
+- **Facts come from source only.** Every claim in the variation traces to the build sheet, supporting docs, or scrape — never invented. The variation may rephrase but not introduce new factual content.
+- **Same factual content as the source.** Hours phrased per §Required sections › Home only › Hours of operation format, services list unchanged, year opened unchanged, immunization options unchanged.
+- **§Voice rules:** plain language, 8th-grade reading level (Flesch-Kincaid ≥ 70), short active-voice sentences, second-person, warm-not-casual, practical.
+- **§Banned phrasings:** zero hits.
+- **§Factual guardrails:** no fabricated credentials, awards, service claims, comparative claims, clinical claims.
+- **§PHI rules:** no PHI ever.
+- **Length:** within ±20% of the default source length. The variation rephrases, it doesn't pad.
+- **Uniqueness across pharmacies.** Maintain `.history/variation-hashes.json` at the repo root — a JSON object mapping SHA-256 hashes of published variations to the build identifier. Before publishing a variation, compute its hash and check the registry. If the hash exists, retry generation with a higher temperature or with a different lead sentence until the hash is unique. Add successful variations to the registry on completion.
+- **Variation prompt template** (used by the AI variation step):
+
+  > Rewrite the following pharmacy section for "<Pharmacy Name>" in "<City, State>". Keep all facts identical to the source. Use 8th-grade reading level, active voice, second person ("you"). Warm but not casual. No marketing hyperbole. No clinical advice. Output length: within ±20% of the source word count. Source: "<default text>". Pharmacy facts: <relevant fields from build/context.json>.
+
+### Verification
+
+Every AI-generated variation passes through `tools/validate-content.mjs` exactly like operator-written content. Variations are not exempt from any rule. Log the per-section source (`operator_edited | ai_variation_of_default | scrape_for_rebuild`) to `/build/log.md` AND to `build/content-provenance.json`.
+
+### Audit trail
+
+`build/content-provenance.json` records, per section: source label, the original default text (when AI-varied), the AI prompt used, the final published text, the SHA-256 hash of the published text, and the validate-content.mjs result. This file is the audit trail for "did this pharmacy's About copy come from them, an AI variation of a generic default, or a scrape of their existing site?" It also lets the QA auditor verify that the published text matches its declared provenance.
+
+### Operator-visible disclosure
+
+When the build completes with one or more AI variations, the build summary delivered to the operator names the affected sections explicitly: "About copy was AI-varied because no edits were detected; the variation is unique to your pharmacy. Review and adjust if desired." Never publish AI variations silently — the operator must know what was machine-written so they can edit.
 
 ## Banned phrasings
 
@@ -1024,7 +1080,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 
 **Input:** The build folder path supplied by the operator; the Build Sheet (`*.docx`) inside it.
 
-**Action:** Scan the folder, resolve every file per §Inputs, and parse the Build Sheet plus any supporting docs (`Website content*.docx`, `QA *.docx`, `SEO_META_Tags_*.docx`). Extract every field listed in §Inputs › Build sheet fields to extract. Write a single `build/context.json` consolidating all parsed fields with `provenance` annotations. Mark absent fields `null` with a `nullReason` — never omit them silently.
+**Action:** Scan the folder, resolve every file per §Inputs, and parse the Build Sheet plus any supporting docs (`Website content*.docx`, `QA *.docx`, `SEO_META_Tags_*.docx`). Extract every field listed in §Inputs › Build sheet fields to extract, including the `Build origin` field (`new` | `rebuild`) and the per-section `Content-edited flags`. Write a single `build/context.json` consolidating all parsed fields with `provenance` annotations. Mark absent fields `null` with a `nullReason` — never omit them silently. For new builds, also compare each content field against `tools/default-templates.json` and record `is_default_template: true|false` per section so §Content variation policy can drive the variation step in Step 4.
 
 **Exit criteria:** `build/context.json` exists, is valid JSON, and contains every required field (present or `null` with a `nullReason`). No field is missing from the file.
 

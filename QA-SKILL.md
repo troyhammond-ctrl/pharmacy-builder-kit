@@ -271,7 +271,13 @@ Allowed override: a banned phrase is permitted only if its exact wording appears
 
 **Factual fabrication.** When `build/context.json` is provided, cross-check every factual claim on the site (hours, address, phone, fax, email, staff, awards, credentials, services, insurance, years in business) against the context. Flag any claim that doesn't trace back to the build sheet or scrape.
 
-Findings reference: `content.banned-phrase`, `content.phi-form-field`, `content.clinical-advice`, `content.fabricated-fact`.
+**Content provenance.** When `build/content-provenance.json` is provided, verify each rendered section's text matches the `final_published_text` recorded for it. A mismatch (the rendered DOM contains text that differs from the recorded variation, with or without the operator's explicit edits) is a Critical finding (`content.provenance-mismatch`). For sections marked `ai_variation_of_default`, also verify: (a) the SHA-256 of the rendered text appears in `.history/variation-hashes.json` (cross-pharmacy uniqueness) — duplicate hash across pharmacies = Important; (b) the variation length is within ±20% of the recorded source default — out of range = Minor; (c) the variation passed `tools/validate-content.mjs` per the audit trail — failure = Critical.
+
+**Default-template smell.** Even without provenance, scan rendered text for known jotform default-template phrases (the auditor maintains its own `tools/default-templates.json` copy of the same list the builder uses). Any verbatim default phrase in the rendered output indicates the variation step was skipped — Important finding (`content.default-template-unvaried`). Especially flag default About / Hero tagline / generic FAQ answers.
+
+**Operator-disclosure visibility.** If sections were AI-varied (per provenance), confirm the operator was disclosed which sections were machine-written. If a `build/operator-summary.md` or equivalent disclosure file is missing or doesn't list the AI-varied sections, Minor finding (`content.no-ai-disclosure`).
+
+Findings reference: `content.banned-phrase`, `content.phi-form-field`, `content.clinical-advice`, `content.fabricated-fact`, `content.provenance-mismatch`, `content.default-template-unvaried`, `content.variation-not-unique`, `content.variation-length-out-of-range`, `content.no-ai-disclosure`.
 
 ### 9. Voice & readability
 
