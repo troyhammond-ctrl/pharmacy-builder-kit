@@ -1,127 +1,124 @@
 ---
 name: website-migration
-description: Migrate or rebuild an existing pharmacy website onto a modern, accessible, factually faithful stack. Use when the user asks to "migrate a pharmacy site," "rebuild a pharmacy website," "port the existing pharmacy site," "modernize [pharmacy]'s website," "website migration," "site rebuild," or provides an existing pharmacy URL to be rebuilt. The input is a build folder with `Build origin: rebuild` — the pharmacy's existing live site is the primary source of truth for content and imagery, scraped and mirrored to `/scraped/` before generation. Same output contract as the pharmacy-builder skill (required pages, WCAG 2.2 AA accessibility, SEO + JSON-LD schema, voice and PHI guardrails, size-report.json, etc.), but the scrape drives content instead of a jotform build sheet's operator-written fields — the §Content variation policy is skipped for rebuilds. Stack-agnostic — the agent picks the framework. This skill and the pharmacy-builder skill share the same body from the H1 onward; only the frontmatter and H1 differ so the trigger surface fits migration language.
+description: Migrate or rebuild an existing pharmacy website onto a modern, accessible, factually faithful stack. Use when the user asks to "migrate a pharmacy site," "rebuild a pharmacy website," "port the existing pharmacy site," "modernize [pharmacy]'s website," "website migration," or "site rebuild." The input is an **input folder produced upstream by Replit** containing a `manifest.json` (structured extraction of pharmacy facts + per-page records) and a `scraped/` directory (raw HTML, reader-mode text, and downloaded assets from the pharmacy's existing live site). There is no jotform build sheet and no separate logo file — the scraped manifest is the sole source of pharmacy facts. Same output contract as the pharmacy-builder skill (required pages, WCAG 2.2 AA accessibility, SEO + JSON-LD schema, voice and PHI guardrails, `size-report.json`, etc.), and the §Content variation policy is skipped for rebuilds. Stack-agnostic — the agent picks the framework. This skill and the pharmacy-builder skill share the same body from `## Required pages` onward, byte-identical; only the frontmatter, H1, §Inputs, and §Scrape sections differ so the input contract fits the pre-scraped migration flow.
 ---
 
 # Website Migration Skill
 
-> The Contract half (below) defines what the build must satisfy. The Process half at the end defines the order in which steps run. Every step in Process references a Contract section by name. Read the whole document before starting a build.
-
 ## Inputs
 
-You are given a path to a build folder. Scan it and resolve every file before doing anything else.
+You are given a path to an input folder. The folder contains a scraped manifest and the mirrored assets of the pharmacy's existing live website, produced upstream by Replit **before this skill runs**. This skill consumes the scrape — it does not re-crawl the source site, and there is no build sheet or separate logo file to parse.
 
 ### Input folder layout
 
-| File | Required? | Discovery rule |
+| File / Path | Required? | Purpose |
 |---|---|---|
-| Build Sheet (`*.docx`) | **Required** | Filename contains `Build Sheet` |
-| Logo (PNG/JPG/SVG) | **Required** | Image in folder root, or fetched from the `Logo:` URL in the build sheet |
-| `Website content*.docx` | Optional | Filename matches `*content*.docx` |
-| `QA *.docx` | Optional | Filename matches `QA *.docx` |
-| `SEO_META_Tags_*.docx` | Optional | Filename matches `SEO_META*.docx` |
-| Extra images, PDFs, videos | Optional | Any other media in the folder; catalog for possible reuse |
-| Word lockfiles (`~$*.docx`) | Ignored | Skip entirely — do not parse or surface |
+| `manifest.json` | **Required** | Structured extraction of pharmacy facts plus a per-page record for every crawled URL |
+| `scraped/raw/*.html` | **Required** | Raw HTML of every crawled source-site page |
+| `scraped/text/*.md` | **Required** | Reader-mode markdown extraction of every crawled page (for LLM consumption) |
+| `scraped/assets/**` | **Required** | Downloaded images, PDFs, videos, and the pharmacy's logo — every binary the source site referenced |
 
-Hard fail if the Build Sheet is missing. Warn and continue if the logo is missing.
+Hard fail if `manifest.json` is missing or unreadable. Log and continue if an individual asset referenced by the manifest is missing from `scraped/assets/` — the corresponding image slot on the new site falls back per §Image policy.
 
-### Build sheet fields to extract
+### Manifest fields to extract
 
-Extract every field listed below. Mark absent fields `null` with a `nullReason`. Do not invent values.
+The manifest is the single source of truth for pharmacy facts. Extract every field listed below into `build/context.json`. Mark absent fields `null` with a `nullReason`. Do not invent values.
 
 - **Pharmacy name**
 - **address** (street, city, state, ZIP)
-- **hours** (all open days and times, exactly as written)
+- **hours** (all open days and times, as extracted from the source site)
 - **phone**
 - **fax**
 - **email**
-- **Website URL** (the pharmacy's existing live site — seed for the scrape step)
-- **New Website URL** (staging/target; used as the canonical base URL)
+- **Original URL** (the pharmacy's existing live site — recorded in `sameAs` and internal provenance)
+- **New URL** (the target base URL for the rebuild; canonical for the new site)
 - **Google Map URL**
 - **refill portal** URL
 - **Patient Portal URL** (wired to the Patient Portal CTA across the site; if absent, the Patient Portal CTA is omitted from the sticky header per §Section omission rule — never invent or substitute another URL)
-- **Transfer-form requirement** (build-sheet key: `Requires transfer form page`; yes/no)
-- **Transfer destination URL** (the outbound URL the `/transfer/` CTA links to when `Requires transfer form page` is yes; never collect PHI on the new site itself)
-- **Requires Mobile App Page** flag (yes/no)
+- **Transfer destination URL** (the outbound URL the `/transfer/` CTA links to when the source site exposes a transfer flow; never collect PHI on the new site itself)
+- **App Store URL** and **Google Play URL** (paired signal — both present means "has native app"; both absent means no `/app/` page is built)
 - **GA ID** (Google Analytics measurement ID)
 - **head JS** snippet (verbatim; wired into `<head>` during generation)
-- **brand color** (hex value)
-- **Logo URL** (if not a local file)
-- **Package label**
-- **Template label** (e.g., "Longhorn" — see policy below)
-- **services topics** (deeper-treatment services; each gets its own page)
-- **services list** (shallow-card services; listed on the services index only)
-- **Per-service description copy** for each Topic entry
-- **immunization options** (list exactly as written; never extend)
+- **brand color** (hex value; inferred from the source site's primary color if a canonical hex was not published on the source)
+- **Logo** (path within `scraped/assets/` — the scraped logo is used verbatim; never regenerate, retint, or replace)
+- **services topics** (services identified on the source site as deeper-treatment; each gets its own page)
+- **services list** (services identified as shallow-card; listed on the services index only)
+- **Per-service description copy** for each Topic entry (extracted from the source site's per-service pages, subject to §Factual guardrails and §Voice)
+- **immunization options** (list exactly as extracted; never extend or supplement)
 - **year opened**
 - **tagline**
-- **about** copy
+- **about** copy (extracted from the source site's About page, subject to §Factual guardrails and §Voice)
 - **pickup methods** (drives `/refill/` copy)
-- **Additional locations** flag (yes/no)
-- **Social links** (if present)
-- **Reviews URL** (Google Business Profile review-submission URL, Yelp review URL, Healthgrades review URL, or equivalent; powers the home page "Leave a Review" CTA per §Required sections › Home only)
-- **App-vs-Portal directive** (optional free-text field in Additional Site Notes; resolves the App-vs-Patient-Portal rule when both options would otherwise apply)
-- **Build origin** (`new` | `rebuild`) — `new` when the operator submitted a jotform build sheet for a new site; `rebuild` when the input is a scrape of an existing live site. Drives the §Content variation policy.
-- **Content-edited flags** — per-section booleans sourced from the jotform's "I have customized this content" indicators:
-  - `About content edited` (yes/no)
-  - `Hero tagline edited` (yes/no)
-  - `Services content edited` (yes/no — applies to per-service Topics description copy)
-  - `FAQ content edited` (yes/no)
-  - `Content edited (overall)` (yes/no, fallback when section-specific flags are absent in the build sheet)
+- **Social links** (list of `sameAs` URLs from the source site's header/footer)
+- **Reviews URL** (Google Business Profile review-submission URL, Yelp review URL, Healthgrades review URL, or equivalent — powers the home page "Leave a Review" CTA per §Required sections › Home only)
+- **Additional locations** (list of location objects, each with name/address/hours/phone; may be empty)
+- **App-vs-Portal directive** (optional free-text field in the manifest; resolves the App-vs-Patient-Portal rule when both options would otherwise apply)
+
+Every field in `build/context.json` must carry a `provenance` annotation: either a source-site URL (from the manifest's per-page records) or the string `manifest` (for facts asserted at the manifest root). Absent fields must appear explicitly as `null` with a `nullReason` string — never omit them silently.
 
 ### Conditional flags
 
-Respect these flags exactly; do not activate conditional pages or features without a matching flag:
+Respect the following conditions exactly; do not activate conditional pages or features without a matching signal in the manifest:
 
-- **`Requires Mobile App Page: Yes`** → build the `/app/` page with real Apple App Store and Google Play badges wired to the URLs in the build sheet.
+- **App Store URL AND Google Play URL both present** → build the `/app/` page with real Apple App Store and Google Play badges wired to those URLs.
 - **Refill portal URL present** → wire the Refill CTA to that URL across the site.
-- **`Requires transfer form page`** → wire the `/transfer/` page's CTA / outbound link to the build-sheet transfer destination URL. The `/transfer/` page itself is always built (see §Required pages); this flag controls its wiring, never its existence. Still no PHI form.
-- **`pickup methods`** → use the listed methods to drive the copy on `/refill/`.
-- **`Additional locations: Yes`** → build a `/locations/` index page plus a `/locations/<slug>/` page per location.
+- **Transfer destination URL present** → wire the `/transfer/` page's CTA / outbound link to that URL. The `/transfer/` page itself is always built (see §Required pages); this signal controls its wiring, never its existence. Still no PHI form.
+- **Non-empty `pickup methods`** → drive the copy on `/refill/` from that list.
+- **Non-empty `Additional locations`** → build a `/locations/` index page plus a `/locations/<slug>/` page per location.
 
-### Template label policy
+### Content variation policy — not applicable
 
-The build sheet may include a field like `Template: Longhorn`. Treat this as a label or hint only — it is not a binding template directive and does not constrain the design. Record it in build metadata and produce a clean, modern, unique design regardless.
+The §Content variation policy in the shared body applies **only** to jotform-driven new builds (`Build origin: new`). For migration/rebuild, the source site is the authoritative source of copy — every field is treated as fully edited content and used verbatim, subject to §Factual guardrails, §PHI rules, §Banned phrasings, and §Voice. Skip §Content variation policy entirely; do not run an AI variation pass on any field.
+
+### Provenance mapping for the shared body
+
+The shared body of this skill (from §Required pages onward) is byte-identical to `SKILL.md` and references "the build sheet" and specific build-sheet field names throughout. In the migration flow, every such reference maps to the scraped manifest as follows:
+
+| Shared-body reference | Migration equivalent |
+|---|---|
+| "the build sheet" | the manifest (`manifest.json`) |
+| "the build-sheet `X:` field" | the manifest field `X` |
+| "sourced from the build sheet or scrape" | sourced from the manifest / scraped text corpus |
+| "the build sheet supplies…" | the manifest supplies… |
+| "the build-sheet directive in Additional Site Notes" | the App-vs-Portal directive in the manifest |
+| "`Requires Mobile App Page: Yes`" | App Store URL AND Google Play URL both present in the manifest |
+| "`Requires transfer form page`" | Transfer destination URL present in the manifest |
+| "`Additional locations: Yes`" | non-empty `Additional locations` array in the manifest |
+| "`New Website URL`" (canonical base) | the manifest field `New URL` |
+| "`Website URL`" (existing live site) | the manifest field `Original URL` |
+
+Every other rule in the shared body — §Factual guardrails, §PHI rules, §Banned phrasings, §Voice, §Accessibility, §SEO, §Schema, section omission when a field is absent — applies identically to the migration flow. Only the source of each field changes.
 
 ### Output of this step
 
-Write a single `build/context.json` that consolidates every parsed field from the build sheet plus any supporting docs (`Website content*.docx`, `QA *.docx`, `SEO_META_Tags_*.docx`). Each field must carry a `provenance` annotation: one of `build_sheet`, `content_doc`, `qa_doc`, `seo_doc`, or `scrape`. Absent fields must appear explicitly as `null` with a `nullReason` string — never omit them silently. This file is the single source of truth that all later steps quote from.
+Write a single `build/context.json` that consolidates every parsed manifest field. Each field must carry its `provenance` annotation. Absent fields must appear explicitly as `null` with a `nullReason` string. This file is the single source of truth that all later steps quote from.
 
 ## Scrape
 
 ### Goal
 
-Mirror the build sheet's `Website URL` field — the pharmacy's existing live site — to a local `/scraped/` folder. The scrape is a **fact source**, not a **design source**. The new site doesn't have to look like the old one; it only borrows verifiable facts, copy, and assets from it.
+The scrape is done upstream by Replit before this skill runs. Its output is the `manifest.json` + `scraped/` folder described in §Inputs. This skill's job is to **consume the scrape as a fact source** — not to re-crawl the source site.
 
-### Mechanics
+### Consumption rules
 
-Write and run `tools/scrape.mjs`. The skill defines the contract; Replit Agent owns the implementation.
-
-- **Seed:** use the `Website URL` from the build sheet (the existing live site, not the staging URL).
-- **Crawl rules:** same-origin only; depth ≤ 2; max 100 pages; rate-limit to 1 req/sec; send a descriptive User-Agent string; respect the source site's `robots.txt`; skip `mailto:`, `tel:`, anchor-only links, and tracker or CDN hosts. Depth 2 covers a typical pharmacy site (home + top-level + one deeper) — bump only when the operator explicitly requests deeper coverage and cost is justified.
-- **Asset capture:** collect every `<img>`, `<source>`, `<video>`, and any `<a href>` pointing to `.pdf`, `.docx`, `.mp4`, `.webm`, or image extensions. Download each file to `/scraped/assets/` using collision-safe filenames that preserve the original name where possible.
-- **Pharmacy imagery discovery (focused pass).** Beyond the page-asset capture above, run a focused pass to find real photographs of THIS pharmacy. Sources, in order: (a) image-heavy pages on the source site (homepage, about, team, gallery); (b) the `og:image` of each scraped page; (c) the Google Business Profile / Maps listing reachable from the build-sheet `Google Map URL` — fetch the listing's public photos if accessible. Classify each captured image into `interior`, `exterior`, `team`, `product`, `logo`, or `other` and record the classification in the asset manifest. These classifications drive §Image policy's sourcing priority and the "exterior shots must be real" rule.
-- **Content capture:** save each crawled page as raw HTML at `/scraped/raw/<slug>.html` and as a reader-mode markdown extraction at `/scraped/text/<slug>.md` for LLM consumption.
-
-### Manifest
-
-Write `/scraped/manifest.json` after the crawl completes. For each page record: URL, HTTP status, final URL (after redirects), `<title>`, first `<h1>`, word count, list of referenced assets, and list of outbound internal links. This file plus the `/scraped/text/*.md` corpus are the handoff to the Plan and Generate steps.
-
-### Failure handling
-
-If the source site is unreachable — DNS failure, HTTP 403, or blocked by `robots.txt` — log `scrape_status: "unreachable"` to `/build/log.md` and continue with build-sheet-only content. There is no silent fallback — log the failure explicitly so downstream steps know the scrape was skipped.
-
-### Allowed uses of scraped content
-
-- **Fact source:** claimed services, awards, staff names, hours phrasing — every claim is still subject to §Factual guardrails before use.
-- **PDFs** (forms, brochures) that may be linked from the new site when relevant.
-- **Storefront, team, and product images** with generated alt text.
+- **Fact source only.** The manifest plus the reader-mode text extractions in `scraped/text/` are the sole source of pharmacy facts. Every fact used on the new site must appear in the manifest or be verifiably present in the scraped text. No external lookups — no geocoding APIs, no Google Places API, no third-party enrichment.
+- **Pharmacy imagery classification.** The manifest classifies every captured image as `interior`, `exterior`, `team`, `product`, `logo`, or `other`. These classifications drive §Image policy's sourcing priority and the "exterior shots must be real" rule.
+- **PDFs** captured to `scraped/assets/` (forms, brochures) may be linked from the new site when relevant.
+- **Storefront, team, and product images** may be used with generated alt text.
 
 ### Disallowed uses
 
-- **Overriding the build sheet on conflict.** Build sheet wins; log every conflict to `/build/log.md`.
+- **Fabrication when a field is absent.** If a fact is not in the manifest and not verifiable from `scraped/text/`, mark it `null` and log to `/build/log.md` — never invent.
 - **Carrying over PHI** (patient testimonials with full names paired with conditions, Rx numbers, DOB, etc.) — redact per §PHI rules.
-- **Carrying over marketing hyperbole, comparative claims, clinical claims, or unverified credentials** — filter per §Voice and §Factual guardrails.
+- **Carrying over marketing hyperbole, comparative claims, clinical claims, or unverified credentials** — filter per §Banned phrasings and §Factual guardrails.
+
+### Failure handling
+
+- **`manifest.json` missing or unreadable** → hard fail with an actionable error before scaffolding anything.
+- **Manifest schema invalid** (required root fields missing — pharmacy name, address, hours, phone) → hard fail; log which fields are missing to stderr and exit non-zero.
+- **Individual asset missing from `scraped/assets/`** → log the missing asset to `/build/log.md` and continue; the corresponding image slot on the new site falls back per §Image policy.
+
+There is no silent fallback — every skipped or missing input is logged explicitly so downstream steps know what was substituted.
 
 ## Required pages
 
