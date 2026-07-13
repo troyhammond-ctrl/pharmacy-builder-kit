@@ -110,7 +110,13 @@ qa_assert_contains "Notice of Privacy Practices" "18-qa:hipaa-nopp"
 qa_assert_contains "HHS" "18-qa:hipaa-hhs"
 qa_assert_contains "Privacy Officer" "18-qa:hipaa-privacy-officer"
 qa_assert_contains "Do not submit Protected Health Information" "18-qa:hipaa-disclaimer-pattern"
-qa_assert_contains "Reject Non-Essential" "18-qa:hipaa-cookie-reject"
+# Cookie banner is an external drop-in — QA verifies presence and Reject path exist,
+# not specific copy strings.
+qa_assert_contains "Cookie consent banner (external drop-in)" "18-qa:hipaa-cookie-external"
+qa_assert_contains "operator installs their own drop-in widget" "18-qa:hipaa-cookie-operator"
+qa_assert_contains "Reject / decline path" "18-qa:hipaa-cookie-reject-path"
+qa_assert_contains "cookie-consent-mount" "18-qa:hipaa-mount-target"
+qa_assert_contains "Google Consent Mode v2" "18-qa:hipaa-consent-mode"
 
 # Verdict rule includes score backstop
 qa_assert_contains "weighted total ≥ 90" "18-qa:verdict-pass-score"

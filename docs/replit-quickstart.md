@@ -188,19 +188,15 @@ Replit gives you a `*.replit.app` URL immediately. Verify the live site by runni
 
 ## Iterating on design
 
-The skill drives a three-skill design toolchain during Step 4 — Generate, invoked in this exact order:
+Design is a **single generation pass** — the skill deliberately does not chain external design-agent skills. That keeps the build fast and cheap while still hitting the professional bar via the recommended stack (React + Tailwind + shadcn/ui via the shadcn MCP) and the constraint set in §Visual design.
 
-1. **`ui-ux-pro-max`** — initial design system, layout, palette extension, font pairing, component patterns. 67 styles, 96 palettes, 13 stacks.
-2. **`huashu-design`** — aesthetic refinement pass over pro-max's first cut: micro-typography, spacing nuance, color rhythm.
-3. **`Impeccable`** — final polish pass: hover states, focus styles, subtle motion, edge cases (long names, missing logos), the "intentional vs acceptable" pass.
+If you want to iterate on visuals after the initial build:
 
-If you want to re-run the design pipeline against an already-generated site:
+> Do a second design pass on the rendered output. Keep §Visual design constraints (brand color canonical, WCAG 2.2 AA wins, one icon set, no ornamental display fonts, no horizontal scroll at 320px) and §Conversion contracts intact. Focus on: <specific area — e.g., "hero visual weight," "service card hierarchy," "footer density">. Re-run the accessibility validator and content validator after changes.
 
-> Invoke the three design skills in order against the rendered output: ui-ux-pro-max with its `review` action, then huashu-design refinement, then Impeccable polish. Apply non-conflicting findings as a second design pass. Re-run the accessibility validator and the content validator after the changes. Log each review pass and its findings to `/build/log.md`.
+The agent runs a single-pass second iteration only when you explicitly ask, so cost stays bounded by intent. If you want the free lunch of "make it look better," the agent will still avoid the expensive multi-skill review loops the earlier version of this skill invoked.
 
-Each skill must consult its own description for the exact actions it supports. If a skill isn't available in your Replit environment, the agent skips it and logs the absence — it never substitutes a different skill silently.
-
-Design isn't done until **all of**: the a11y validator passes, the content validator passes, AND each of the three design-skill reviews returns no critical issues.
+Design is done when: the a11y validator passes, the content validator passes, and you've eyeballed the mobile + desktop preview.
 
 ---
 

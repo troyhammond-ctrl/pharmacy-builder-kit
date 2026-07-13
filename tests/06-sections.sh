@@ -58,13 +58,13 @@ assert_contains "focus trap" "06-sections:focus-trap"
 assert_contains "prefers-reduced-motion" "06-sections:reduced-motion"
 assert_contains "safe-area-inset" "06-sections:safe-area"
 
-# Cookie consent banner contract
-assert_contains "Cookie consent banner" "06-sections:cookie-banner-section"
-assert_contains "Accept all" "06-sections:cookie-accept-all"
-assert_contains "Reject non-essential" "06-sections:cookie-reject"
-assert_contains "Privacy Policy" "06-sections:cookie-privacy-link"
-assert_contains "consent gate" "06-sections:cookie-consent-gate"
-assert_contains "must not be set" "06-sections:cookie-suppress-until-accept"
+# Cookie consent banner — external drop-in (builder does NOT generate)
+assert_contains "Cookie consent banner (external drop-in)" "06-sections:cookie-external-heading"
+assert_contains "Not built by this skill" "06-sections:cookie-not-built"
+assert_contains "cookie-consent-mount" "06-sections:cookie-mount-id"
+assert_contains "COOKIE_CONSENT_SCRIPT" "06-sections:cookie-placeholder-comment"
+assert_contains "Google Consent Mode v2" "06-sections:cookie-consent-mode"
+assert_contains "default consent state to \`denied\`" "06-sections:cookie-default-denied"
 
 # Hero must depict pharmacist serving a patient
 assert_contains "pharmacist serving a patient" "06-sections:hero-pharmacist-patient"

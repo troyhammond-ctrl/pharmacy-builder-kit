@@ -98,7 +98,7 @@ Mirror the build sheet's `Website URL` field — the pharmacy's existing live si
 Write and run `tools/scrape.mjs`. The skill defines the contract; Replit Agent owns the implementation.
 
 - **Seed:** use the `Website URL` from the build sheet (the existing live site, not the staging URL).
-- **Crawl rules:** same-origin only; depth ≤ 3; max 200 pages; rate-limit to 1 req/sec; send a descriptive User-Agent string; respect the source site's `robots.txt`; skip `mailto:`, `tel:`, anchor-only links, and tracker or CDN hosts.
+- **Crawl rules:** same-origin only; depth ≤ 2; max 100 pages; rate-limit to 1 req/sec; send a descriptive User-Agent string; respect the source site's `robots.txt`; skip `mailto:`, `tel:`, anchor-only links, and tracker or CDN hosts. Depth 2 covers a typical pharmacy site (home + top-level + one deeper) — bump only when the operator explicitly requests deeper coverage and cost is justified.
 - **Asset capture:** collect every `<img>`, `<source>`, `<video>`, and any `<a href>` pointing to `.pdf`, `.docx`, `.mp4`, `.webm`, or image extensions. Download each file to `/scraped/assets/` using collision-safe filenames that preserve the original name where possible.
 - **Pharmacy imagery discovery (focused pass).** Beyond the page-asset capture above, run a focused pass to find real photographs of THIS pharmacy. Sources, in order: (a) image-heavy pages on the source site (homepage, about, team, gallery); (b) the `og:image` of each scraped page; (c) the Google Business Profile / Maps listing reachable from the build-sheet `Google Map URL` — fetch the listing's public photos if accessible. Classify each captured image into `interior`, `exterior`, `team`, `product`, `logo`, or `other` and record the classification in the asset manifest. These classifications drive §Image policy's sourcing priority and the "exterior shots must be real" rule.
 - **Content capture:** save each crawled page as raw HTML at `/scraped/raw/<slug>.html` and as a reader-mode markdown extraction at `/scraped/text/<slug>.md` for LLM consumption.
@@ -253,18 +253,20 @@ Every page must use real-looking, brand-appropriate imagery. The site never ship
 
 Use one coherent icon set across the entire site (e.g., Lucide, Heroicons, or Phosphor). Pick one set and commit to it. The same icon set appears in the services grid cards and the header services dropdown — never mix two icon families. All icons must be rendered at a consistent size (approximately 24×24 px), use a single-stroke line style, and accept brand-color theming via `currentColor` so they inherit the text color of their container without hardcoded fill values.
 
-### Cookie consent banner
+### Cookie consent banner (external drop-in)
 
-Every site emits a compact, dismissible cookie consent banner on first visit when any non-essential cookie or storage is used (which is always true when the build-sheet `GA ID` is wired). Strict rules:
+**Not built by this skill.** The operator provides a drop-in cookie consent widget — external code loaded via a `<script>` tag or a small HTML snippet. The builder does NOT generate a banner, does NOT wire consent gating around analytics, and does NOT persist consent state. Those concerns belong to the drop-in widget.
 
-- **Compact bottom banner.** Sticks to the bottom of the viewport at ≤ 80px tall on mobile, ≤ 64px on desktop. Never a center-screen modal. Never blocks content interaction beneath it — clicking through the banner area onto the page works.
-- **Plain-language copy.** "We use cookies to keep the site running and (when you allow it) to understand how visitors use it. You can accept all or reject non-essential." Plain prose; no banned phrasings; no marketing hyperbole; no fake "we value your privacy" affectation.
-- **Three controls,** all keyboard-reachable and ≥ 44×44 tap targets: **Accept all** (primary), **Reject non-essential** (secondary, equal visual weight), **Privacy Policy** (text link to `/privacy/`).
-- **Reject must actually suppress.** Until the user clicks Accept, analytics cookies (including the GA ID's `_ga` / `_gid` cookies) must not be set. Use a consent gate around the GA `<script>` injection — load the snippet only after Accept; remove cookies on Reject.
-- **Persist the choice** in `localStorage` under a non-identifying key (e.g., `cookie-consent`) with values `accepted` / `rejected`. Never store a value tied to a patient identifier. Re-prompt only if the value is missing.
-- **Accessible.** `role="region"` with `aria-label="Cookie consent"`. Banner controls have visible focus. Banner does not trap focus (users can ignore it and use the rest of the site without dismissing it — content remains clickable).
+**Required in the base template:** leave a clear insertion point so the operator can drop the widget in without hunting through markup. Choose ONE of:
 
-The cookie consent banner is the only banner-style overlay allowed on the site. No newsletter pop-ups, no exit-intent modals, no promotional interstitials — see §Conversion.
+- An empty mount element immediately before `</body>`: `<div id="cookie-consent-mount"></div>` with a comment `<!-- Operator: replace or hydrate this element with your cookie consent widget. Loading order matters — do not defer this below the fold. -->`
+- OR a documented placeholder comment in `<head>`: `<!-- COOKIE_CONSENT_SCRIPT: operator injects their consent widget script here -->`
+
+Log which convention was chosen to `/build/log.md`. Do not block the build if the placeholder is empty — that's the operator's responsibility to fill.
+
+**Analytics wiring in the presence of external consent.** Because the widget owns consent state, wire the build-sheet `head JS snippet` and `GA ID` such that the widget's `window.dataLayer` or equivalent consent-mode API can gate them. When Google Consent Mode v2 is in use (common with drop-in widgets), set the default consent state to `denied` for analytics/ad storage in the initial `gtag('consent', 'default', ...)` call, and let the widget flip it to `granted` on user acceptance. Do not hard-code `granted` — that defeats the widget.
+
+No newsletter pop-ups, no exit-intent modals, no promotional interstitials — see §Conversion. The cookie widget is the only banner-style overlay allowed.
 
 ### Mobile navigation
 
@@ -378,49 +380,20 @@ Every CTA names the action. Banned labels: "Click here," "Learn more," "Submit,"
 
 ## Visual design
 
-The skill is stack-agnostic, but design quality is not optional. Pharmacies are healthcare businesses — the site must look professional, modern, and trustworthy.
+The site must look professional, modern, and trustworthy. The skill is stack-agnostic, but the **recommended stack for cost and speed is React + Tailwind + shadcn/ui via the shadcn MCP**. Do not invoke external design-agent skills — the constraints below plus the shadcn component library produce a professional result in a single generation pass. No design review pass is required beyond the §Accessibility and content validators.
 
-### Design skill toolchain
+**Style direction.** Clean, modern, professional. Prefer minimalism or flat design with subtle depth. On the home page a restrained bento grid layout is acceptable. Avoid brutalism, claymorphism, heavy neumorphism, and anything that reads "trendy" rather than "trustworthy."
 
-Three design skills work together. Replit Agent must invoke them in the order below during Step 4 — Generate. Each skill is the authority for its phase; on any conflict between a skill's suggestion and a constraint listed under "Constraints" below, the constraint wins.
+**Design constraints — these are the whole contract. Any stylistic choice that violates one of them is wrong regardless of aesthetic preference.**
 
-1. **`ui-ux-pro-max`** — *initial design system and layout.* Use for foundational decisions: page composition and information hierarchy, palette extension around the brand hex, font pairing selection, component patterns (cards, navbars, modals, forms, buttons), spacing and rhythm, responsive breakpoints. Pro-max ships 67 styles, 96 palettes, 57 font pairings, 13 stacks (including React + Tailwind + shadcn/ui). It produces the first design pass.
+- **Brand color is canonical.** The hex from the build sheet is the primary accent. Neutral shades and one or two complementary accents are fine. If the brand hex cannot reach 4.5:1 against white for body text, body text falls back to `#111111` and the brand color stays accent-only per §Accessibility.
+- **Accessibility, Voice, Required sections, Conversion, and PHI wins on conflict.** No visual choice overrides §Accessibility, §Voice, §Banned phrasings, §Required sections, §Conversion, or §PHI rules.
+- **Iconography.** One coherent icon set (Lucide recommended for shadcn integration; Heroicons or Phosphor acceptable). Never mix families.
+- **Typography.** A single well-supported font pairing — Inter as body and Inter or Poppins as display is a safe default. Body font-size ≥ 16px on mobile (iOS auto-zooms inputs below 16px). No ornamental display fonts for body content.
+- **Responsive.** CSS must include a global `*, *::before, *::after { box-sizing: border-box; }` reset; at least one `@media` query (mobile-first breakpoints at 640px, 768px, 1024px, 1280px is a reasonable set); explicit `width` and `height` (or aspect-ratio) on every image; no horizontal scroll at 320px viewport.
+- **Dark mode.** Ship only if the brand color can reach WCAG AA on a dark background. Otherwise ship light mode only and log the decision in `/build/log.md`. Never ship a degraded dark mode.
 
-2. **`huashu-design`** — *aesthetic refinement.* Apply after the pro-max first pass to refine the visual style: micro-typography, spacing nuance, color rhythm, and overall aesthetic coherence. If `huashu-design` exposes a `review` or `apply` action, run it against the rendered first pass. Treat huashu-design as the taste layer that elevates pro-max's structural output.
-
-3. **`Impeccable`** — *final polish and detail pass.* Run last, against the rendered output after huashu-design. Impeccable's role is the finishing pass: hover states, focus styles (respecting §Accessibility), subtle motion, shadow depth, edge cases (long pharmacy names, missing logos, very short hero copy), and any element that needs to feel intentional rather than acceptable.
-
-Each skill must consult its own description for the exact actions it supports. If a skill is unavailable in the current Replit environment, skip it and log the absence in `/build/log.md` — never substitute a different skill silently, and never fabricate output that mimics one.
-
-### Style direction
-
-Clean, modern, professional. Recommended styles from the pro-max catalog: minimalism, flat design with subtle depth, or a restrained bento grid layout on the home page. Avoid brutalism, claymorphism, heavy neumorphism, and anything that reads "trendy" rather than "trustworthy." Huashu-design and Impeccable refinements must stay inside this direction — none of them is a license to drift toward editorial, playful, or experimental aesthetics.
-
-### Stack hint
-
-When any design skill needs a stack signal, default to React + Tailwind + shadcn/ui (via the shadcn MCP). If Replit Agent picks a different stack at scaffolding time, all three design skills must align with that stack so their tokens and components stay compatible.
-
-### Constraints — design-skill output is filtered through these. On any conflict, the constraint wins.
-
-- **Brand color is canonical.** The hex from the build sheet is the primary accent across all three skills' output. They may propose complementary or neutral shades around it, but the brand hex itself is non-negotiable.
-- **Accessibility wins.** If any skill suggests a low-contrast hover, a focus override < 3:1, a color-only indicator, or any pattern that conflicts with §Accessibility, the §Accessibility rule wins. Never sacrifice WCAG 2.2 AA for visual flair.
-- **Voice wins.** If any skill generates microcopy (button labels, empty states, error text), §Voice and §Banned phrasings still apply. Filter all design-skill copy through `tools/validate-content.mjs` before declaring done.
-- **Required sections are non-negotiable.** No skill may invent layouts that omit any of §Required sections or merge them in ways that hide critical content.
-- **Iconography.** Pro-max picks one icon set per §Required sections › Iconography rule. Neither huashu-design nor Impeccable may swap sets or mix families during their refinement passes.
-- **Typography.** Pro-max picks one of its font pairings. Body sans-serif must support the 8th-grade readability target in §Voice; display fonts must remain accessible at the sizes used. No ornamental display fonts for body content, even if huashu-design or Impeccable suggests otherwise.
-- **Dark mode.** Ship dark mode only if all three skills can collectively produce one without breaking WCAG AA contrast against the brand color. If brand color cannot satisfy AA on a dark background, ship light mode only and log the decision in `/build/log.md`. Never force a degraded dark mode.
-- **Responsive and mobile-first.** Every skill's output must pass on phone, tablet, and desktop breakpoints. The sticky header must not trap focus or scroll on mobile (see §Required sections › Mobile navigation). The CSS must include: a global `*, *::before, *::after { box-sizing: border-box; }` reset; at least one `@media` query (mobile-first breakpoints typically at 640px, 768px, 1024px, 1280px); a body font-size ≥ 16px on mobile (iOS auto-zooms inputs with smaller sizes); explicit `width` and `height` attributes (or aspect-ratio CSS) on every image to prevent layout shift. No horizontal scroll at 320px viewport — confirm `document.documentElement.scrollWidth <= window.innerWidth` at 320px.
-- **Conversion contract.** None of the three skills may override §Conversion: the sticky bottom mobile CTA bar, the action priority (Call > Refill > Transfer > Portal), above-the-fold rules, and the click-to-call wiring stand regardless of design preference.
-
-### Review passes
-
-After Step 4 — Generate produces the rendered output, run a review pass through each skill in order:
-
-1. Pro-max `review` action against the rendered output; apply non-conflicting findings as a second design pass.
-2. Huashu-design review (if it exposes a review action) for aesthetic regressions introduced by step 1's fixes.
-3. Impeccable review for final polish gaps.
-
-Do not declare design done until **all of**: the §Accessibility validator passes, the §Banned phrasings validator passes, AND each of the three design-skill reviews returns no critical issues. Log every review pass and its findings to `/build/log.md`.
+**Cost note.** Single-pass generation with the constraints above is the default. Do not schedule additional review or refinement rounds beyond the mandatory §Accessibility and content validators. If the operator explicitly requests a second design pass, log the request and iterate — but do not do so implicitly.
 
 ## Voice
 
@@ -1092,7 +1065,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 
 **Input:** `build/context.json` (from Step 1); specifically the `Website URL` field (the pharmacy's existing live site).
 
-**Action:** Run `tools/scrape.mjs` per §Scrape mechanics. Crawl the live site same-origin, depth ≤ 3, max 200 pages, 1 req/sec. Save raw HTML to `/scraped/raw/`, reader-mode markdown to `/scraped/text/`, assets to `/scraped/assets/`. Write `/scraped/manifest.json` per §Scrape › Manifest.
+**Action:** Run `tools/scrape.mjs` per §Scrape mechanics. Crawl the live site same-origin, depth ≤ 2, max 100 pages, 1 req/sec. Save raw HTML to `/scraped/raw/`, reader-mode markdown to `/scraped/text/`, assets to `/scraped/assets/`. Write `/scraped/manifest.json` per §Scrape › Manifest.
 
 **Exit criteria:** `/scraped/manifest.json` exists and records EITHER at least one page entry with `scrape_status: "complete"` OR a top-level `scrape_status: "unreachable"` entry (with reason). All captured assets, if any, are present on disk. The scrape log entry in `/build/log.md` records the same `scrape_status` value — there is no silent fallback.
 
@@ -1116,7 +1089,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 
 **Input:** `/build/page-plan.json` (Step 3); `build/context.json` (Step 1); `/scraped/` corpus (Step 2).
 
-**Action:** Scaffold the project and generate every page in the plan. **Invoke the three design skills in order per §Visual design › Design skill toolchain: `ui-ux-pro-max` → `huashu-design` → `Impeccable`.** Pro-max sets the foundational design system and layout; huashu-design refines aesthetic style; Impeccable finishes with polish and micro-detail. All three skills' output is filtered through the §Visual design constraints, §Accessibility, §Voice, and §Conversion contracts. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, and emit all required JSON-LD blocks per §Schema (JSON-LD). After all pages are written, generate the site-wide files:
+**Action:** Scaffold the project and generate every page in the plan in a **single design pass** per §Visual design — no external design-agent skills, no review-pass loops. Use the recommended React + Tailwind + shadcn/ui stack unless the operator overrides. For each page: write semantic HTML per §Required sections, apply WCAG 2.2 AA per §Accessibility, include all `<head>` elements per §SEO, emit all required JSON-LD blocks per §Schema (JSON-LD), leave the cookie consent placeholder from §Required sections › Cookie consent banner (external drop-in) in the base template, and honor §Conversion. After all pages are written, generate the site-wide files:
 
 - `robots.txt` per §SEO › Site-wide files
 - `sitemap.xml` per §SEO › Site-wide files
@@ -1132,6 +1105,16 @@ Wire the following into every page's `<head>` and layout exactly as sourced from
 **Exit criteria:** Every page in `/build/page-plan.json` has a corresponding generated HTML file. `robots.txt`, `sitemap.xml`, and `llms.txt` exist at the site root. All JSON-LD blocks are present and syntactically valid. No placeholder text appears in any output file.
 
 **Failure mode:** If a required field is absent from `build/context.json`, omit the corresponding section or element (see §Section omission rule). Log every omission to `/build/log.md`. Do not stub, invent, or hardcode values — no silent fallback.
+
+**Cost and efficiency rules for Step 4.** The design generation and content pipeline is the most expensive part of a build. Apply these rules to keep cost bounded:
+
+- **Single-pass design.** Generate the design once per page. Do not invoke external design agents or run review-pass loops. If the operator explicitly requests a second pass, do it and log; otherwise stop after the first pass.
+- **AI content variation only when the flag positively indicates unedited.** Per §Content variation policy, the variation step runs only when a content-edited flag is set to `no` OR the submitted text exactly matches a known jotform default template phrase. Any other signal — including missing flags — is treated as edited and skips the AI call. This avoids paying for variations the operator didn't ask for.
+- **Image generation is last-resort.** Follow §Image policy sourcing priority strictly (build folder → scrape → AI-generated for interior-only scenes → Unsplash stock). Prefer existing images over generating new ones; the AI-generation step is only invoked when no acceptable image exists in the first two sources for the specific slot.
+- **No cookie banner generation.** The banner is an external drop-in per §Required sections › Cookie consent banner (external drop-in). Do not generate the widget code.
+- **Reuse scraped assets in place.** During Generate, reference images and PDFs by their `/scraped/assets/` local paths — do not re-fetch or re-download.
+- **Batch validator invocations.** Run each validator (`tools/validate-content.mjs`, `tools/validate-a11y.mjs`, `tools/validate-schema.mjs`) once against the full site output rather than per-page shell fanout. Each script accepts a base directory as input.
+- **Lighthouse iteration budget.** After Generate, run Lighthouse once per page. If a metric misses its target by less than 10% (e.g., LCP 2.7s vs 2.5s target), log a warning and continue — do not iterate. Only regenerate for hard misses (> 10% over target or a Critical validator finding). Log all decisions to `/build/log.md`.
 
 ---
 
@@ -1186,7 +1169,7 @@ SEO + SCHEMA
 [ ] BreadcrumbList on non-home pages
 [ ] Per-service JSON-LD: MedicalProcedure / MedicalTherapy / MedicalTest / Vaccine for clinical services; plain Service for operational ones
 [ ] No on-site search: no SearchAction in JSON-LD, no /search route, no search input in markup
-[ ] Design skill toolchain invoked in order: ui-ux-pro-max -> huashu-design -> Impeccable; each review pass run; absences logged; brand color preserved; no constraint conflicts unresolved
+[ ] Single-pass generation per §Visual design; brand color preserved; no unauthorized second design pass invoked
 [ ] sitemap.xml parses as well-formed XML; sitemaps.org namespace present; every <url> has loc/lastmod/changefreq/priority
 [ ] robots.txt: User-agent + Allow + Sitemap directives only; UTF-8 LF, no BOM; absolute Sitemap URL
 [ ] llms.txt: H1 + blockquote + paragraph + ## Services + ## Information + ## Optional sections; spec format honored
@@ -1197,7 +1180,7 @@ SEO + SCHEMA
 [ ] Every phone number wrapped in <a href="tel:+1..."> with +1 prefix; every email in mailto: link
 [ ] No carousel hero, no exit-intent modals, no auto-play media, no "Click here" / "Learn more" CTA copy
 [ ] /privacy/ page exists with HIPAA Notice of Privacy Practices; linked from footer of every page
-[ ] Cookie consent banner: compact, dismissible, Accept All + Reject Non-Essential + Privacy Policy link; analytics suppressed until Accept
+[ ] Cookie consent placeholder present (external drop-in widget target); GA consent-mode default set to denied
 [ ] CSS: box-sizing: border-box reset; >= 1 @media query; body font-size >= 16px on mobile; no horizontal scroll at 320px
 [ ] Security headers: HSTS (2yr+), CSP with frame-ancestors, X-Content-Type-Options nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy denying camera/mic/geo/payment
 [ ] Lighthouse mobile: Performance >= 85; LCP <= 2.5s; CLS <= 0.1; FCP <= 1.8s; Speed Index <= 3.4s; TBT <= 200ms — logged per page

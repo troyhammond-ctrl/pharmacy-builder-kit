@@ -344,16 +344,15 @@ Five checks, mirroring the highest-weighted grader category (25%). Every pharmac
 
 **2. HIPAA disclaimer on forms.** No public form on the site should collect PHI (per §PHI rules in the builder contract). If any form exists for non-PHI purposes (e.g., a contact-us request — which we also discourage), it must include a visible HIPAA disclaimer above the submit control with this exact pattern: "Do not submit Protected Health Information through this form. For prescription transfers, refills, or anything involving your medications, call us at `<phone>`." A form collecting PHI is a Critical finding regardless of disclaimer presence.
 
-**3. Cookie consent banner.** A compact, dismissible cookie consent banner is present on first visit when any non-essential cookie or storage is used (e.g., GA wired via the build-sheet GA ID). Rules:
+**3. Cookie consent banner (external drop-in).** The builder does NOT generate this banner — the operator installs their own drop-in widget. The audit verifies that:
 
-- Compact bottom banner — never a center-screen modal that blocks content interaction.
-- Names the categories used: "Essential" plus "Analytics" if GA is wired. No mention of categories the site doesn't use.
-- Provides Accept All, Reject Non-Essential, and a link to `/privacy/`. The Reject control must actually suppress non-essential cookies.
-- Persists the user's choice (cookie or localStorage; never PHI; never linkable to the patient).
-- Hidden after the choice is made; reappears only if the persisted choice expires or is cleared.
-- Does not block keyboard navigation or screen reader access while visible.
+- **A cookie consent surface is actually present on first visit** — some banner, popup, or bar appears (or a JS-driven overlay is injected) when the page loads without prior consent state. Missing consent surface = Important. Missing when GA is wired = Critical.
+- **The base template exposes an insertion point** for the widget: either an element with id `cookie-consent-mount` before `</body>` or a documented placeholder comment. If neither is present AND no widget is loaded, Important (`hipaa.no-consent-mount`).
+- **Analytics do not fire before consent.** Test by loading the page with a clean cookie jar and inspecting network requests + `document.cookie` — no `_ga`, `_gid`, `gtag` beacon, or equivalent should appear until the consent surface is interacted with. If GA fires before consent, Critical (`hipaa.analytics-before-consent`).
+- **The consent surface is not a full-screen modal that blocks content interaction.** Bottom banner or drawer OK; center-screen modal that traps focus or hides page content fails this check (Important).
+- **The consent surface offers a Reject / decline path** (any wording — "Reject", "Decline", "Manage preferences" that leads to a decline). Absence = Important.
 
-A banner that modal-blocks content, or that has no Reject option, or that drops analytics cookies before consent, fails this check (Important by default; Critical if it blocks accessibility).
+The audit does not evaluate the widget's copy or branding — that's the operator's choice. It evaluates only presence, non-blocking behavior, pre-consent-analytics behavior, and Reject availability. A well-configured Google Consent Mode v2 setup with any of the popular OSS or commercial widgets (CookieYes, Klaro, Osano, Cookiebot, Iubenda, etc.) will pass every check.
 
 **4. HTTPS encryption.** Already verified in Dimension 12. Cross-listed here so the HIPAA category aggregates correctly. A site without HTTPS fails BOTH dimensions (Critical, Critical).
 
@@ -369,7 +368,7 @@ A banner that modal-blocks content, or that has no Reject option, or that drops 
 - Includes the HHS OCR complaint URL: `https://www.hhs.gov/ocr/privacy/hipaa/complaints/` (or the current canonical URL — verify it returns HTTP 200 from the audit base).
 - Plain language consistent with §Voice in the builder contract.
 
-Findings reference: `hipaa.no-privacy-policy`, `hipaa.privacy-policy-no-effective-date`, `hipaa.privacy-policy-no-contact`, `hipaa.privacy-policy-missing-patient-rights`, `hipaa.privacy-policy-no-ocr-link`, `hipaa.privacy-policy-not-linked-from-footer`, `hipaa.form-no-disclaimer`, `hipaa.no-cookie-banner`, `hipaa.cookie-banner-modal-blocking`, `hipaa.cookie-banner-no-reject`, `hipaa.cookie-banner-no-categories`, `hipaa.analytics-before-consent`.
+Findings reference: `hipaa.no-privacy-policy`, `hipaa.privacy-policy-no-effective-date`, `hipaa.privacy-policy-no-contact`, `hipaa.privacy-policy-missing-patient-rights`, `hipaa.privacy-policy-no-ocr-link`, `hipaa.privacy-policy-not-linked-from-footer`, `hipaa.form-no-disclaimer`, `hipaa.no-cookie-banner`, `hipaa.no-consent-mount`, `hipaa.cookie-banner-modal-blocking`, `hipaa.cookie-banner-no-reject`, `hipaa.analytics-before-consent`.
 
 ## Scoring rubric
 

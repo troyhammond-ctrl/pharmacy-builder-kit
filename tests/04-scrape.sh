@@ -13,7 +13,7 @@ assert_contains "tools/scrape.mjs" "04-scrape:script-name"
 # Crawl rules
 assert_contains "same-origin" "04-scrape:same-origin"
 assert_contains "depth" "04-scrape:depth"
-assert_contains "200 pages" "04-scrape:max-pages"
+assert_contains "100 pages" "04-scrape:max-pages"
 assert_contains "1 req/sec" "04-scrape:rate-limit"
 assert_contains "robots.txt" "04-scrape:robots"
 

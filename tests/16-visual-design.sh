@@ -1,58 +1,50 @@
 #!/usr/bin/env bash
 # tests/16-visual-design.sh
-# Locks the three-skill design toolchain (ui-ux-pro-max ->
-# huashu-design -> Impeccable) and the precedence rules that
-# guarantee design quality without overriding accessibility,
-# voice, conversion, or required-section contracts.
+# Locks the lean, single-pass visual design contract. Guards against
+# regressions that would reintroduce the heavy three-skill toolchain
+# (ui-ux-pro-max / huashu-design / Impeccable) or add unauthorized
+# design review-pass loops.
 set -euo pipefail
 source "$(dirname "$0")/lib/check.sh"
 
-# Section + toolchain subsection
+# Section still present
 assert_contains_regex '^## Visual design$' "16-visual:section"
-assert_contains "Design skill toolchain" "16-visual:toolchain-subsection"
 
-# All three skills named
-assert_contains "ui-ux-pro-max" "16-visual:pro-max-name"
-assert_contains "huashu-design" "16-visual:huashu-name"
-assert_contains "Impeccable" "16-visual:impeccable-name"
+# Single-pass, cost-aware framing
+assert_contains "single generation pass" "16-visual:single-pass"
+assert_contains "Do not invoke external design-agent skills" "16-visual:no-external-agents"
+assert_contains "No design review pass is required" "16-visual:no-review-pass"
+assert_contains "Cost note" "16-visual:cost-note"
 
-# Order is explicit
-assert_contains "ui-ux-pro-max\` → \`huashu-design\` → \`Impeccable" "16-visual:order-explicit"
-
-# Roles are differentiated
-assert_contains "initial design system" "16-visual:pro-max-role"
-assert_contains "aesthetic refinement" "16-visual:huashu-role"
-assert_contains "final polish" "16-visual:impeccable-role"
-
-# Absence policy: log, never substitute
-assert_contains "skip it and log the absence" "16-visual:skip-and-log"
-assert_contains "never substitute" "16-visual:no-substitution"
+# Recommended stack
+assert_contains "React + Tailwind + shadcn/ui" "16-visual:stack"
+assert_contains "shadcn MCP" "16-visual:shadcn-mcp"
 
 # Style direction
 assert_contains "Clean, modern, professional" "16-visual:style-direction"
 assert_contains "minimalism" "16-visual:style-minimalism"
-
-# Stack hint
-assert_contains "Tailwind" "16-visual:tailwind"
-assert_contains "shadcn" "16-visual:shadcn"
+assert_contains "Avoid brutalism" "16-visual:style-avoid-brutalism"
 
 # Constraint precedence
 assert_contains "Brand color is canonical" "16-visual:brand-canonical"
-assert_contains "Accessibility wins" "16-visual:a11y-wins"
-assert_contains "Voice wins" "16-visual:voice-wins"
-assert_contains "Required sections are non-negotiable" "16-visual:sections-non-negotiable"
-assert_contains "Conversion contract" "16-visual:conversion-contract"
+assert_contains "Accessibility, Voice, Required sections, Conversion, and PHI wins on conflict" "16-visual:constraints-win"
+
+# Iconography + typography defaults
+assert_contains "Lucide recommended" "16-visual:icons-lucide"
+assert_contains "Inter" "16-visual:font-inter"
+assert_contains "font-size ≥ 16px" "16-visual:font-min"
+
+# Responsive baseline
+assert_contains "box-sizing: border-box" "16-visual:box-sizing"
+assert_contains "320px viewport" "16-visual:no-h-scroll-320"
 
 # Dark mode policy
-assert_contains "Never force a degraded dark mode" "16-visual:dark-mode-policy"
+assert_contains "Never ship a degraded dark mode" "16-visual:dark-mode-policy"
 
-# Review passes for each skill
-assert_contains "Review passes" "16-visual:review-passes"
-assert_contains "Pro-max \`review\`" "16-visual:pro-max-review"
-assert_contains "Huashu-design review" "16-visual:huashu-review"
-assert_contains "Impeccable review" "16-visual:impeccable-review"
-
-# Wired into Step 4 of Process
-assert_contains "Invoke the three design skills in order" "16-visual:wired-into-step-4"
+# HARD GUARDS: the three heavy skills must NOT reappear anywhere in SKILL.md
+assert_not_contains "ui-ux-pro-max" "16-visual:guard-no-pro-max"
+assert_not_contains "huashu-design" "16-visual:guard-no-huashu"
+assert_not_contains "Impeccable" "16-visual:guard-no-impeccable"
+assert_not_contains "Design skill toolchain" "16-visual:guard-no-toolchain-heading"
 
 pass "16-visual-design"
