@@ -50,6 +50,21 @@ assert_contains "## Information" "11-seo:llms-information-section"
 assert_contains "## Optional" "11-seo:llms-optional-section"
 assert_contains "Required blockquote" "11-seo:llms-blockquote-required"
 
+# size-report.json (folded-in website-migration skill)
+assert_contains "size-report.json" "11-seo:size-report-file"
+assert_contains "root of the deployed output" "11-seo:size-report-location"
+assert_contains "hosting-cost estimation" "11-seo:size-report-rationale"
+assert_contains "generatedAt" "11-seo:size-report-generated-at"
+assert_contains "outputDir" "11-seo:size-report-output-dir"
+assert_contains "totalBytes" "11-seo:size-report-total-bytes"
+assert_contains "totalFiles" "11-seo:size-report-total-files"
+assert_contains "byType" "11-seo:size-report-by-type"
+for cat in html css js images fonts other; do
+  assert_contains "\`$cat\`" "11-seo:size-report-cat-$cat"
+done
+assert_contains "scripts/size-report.mjs" "11-seo:size-report-script"
+assert_contains "State the totals in the final summary" "11-seo:size-report-summary"
+
 # Security headers (server config)
 assert_contains "Security headers" "11-seo:security-headers-section"
 assert_contains "Strict-Transport-Security" "11-seo:hsts"

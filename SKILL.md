@@ -785,6 +785,48 @@ Strict-format rules:
 - Encode special characters per markdown rules (parentheses inside URLs).
 - Omit any bullet whose source data is missing — never stub or fabricate links.
 
+**`size-report.json`**
+
+Every deployed pharmacy site emits a machine-readable size report at the root of the deployed output — so hosting-cost estimation is trivial per site. After the production build (`vite build`, `npm run build`, or equivalent) completes and the output folder (`dist`, `build`, or the framework's default) exists on disk, measure it and write the report **into that same folder** so it deploys alongside the site and is reachable at `/size-report.json`.
+
+Measure the built output folder recursively:
+
+- **totalBytes** — sum of all file sizes in bytes.
+- **totalFiles** — count of all files.
+- **byType** — per-category `{ bytes, files }` with these exact category names and extensions:
+  - `html` — `.html`, `.htm`
+  - `css` — `.css`
+  - `js` — `.js`, `.mjs`, `.cjs`, `.map`
+  - `images` — `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.avif`, `.ico`
+  - `fonts` — `.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`
+  - `other` — everything else
+
+Exact JSON shape:
+
+```json
+{
+  "generatedAt": "2026-07-10T12:00:00.000Z",
+  "outputDir": "dist",
+  "totalBytes": 1234567,
+  "totalFiles": 42,
+  "byType": {
+    "html":   { "bytes": 120000, "files": 5 },
+    "css":    { "bytes": 80000,  "files": 2 },
+    "js":     { "bytes": 400000, "files": 6 },
+    "images": { "bytes": 600000, "files": 25 },
+    "fonts":  { "bytes": 30000,  "files": 3 },
+    "other":  { "bytes": 4567,   "files": 1 }
+  }
+}
+```
+
+Rules:
+
+- Measure the output **before** writing `size-report.json`. Its own few hundred bytes don't need to be included in the totals.
+- If the build tool cleans the output folder on rebuild, regenerate the report after the final build. Recommended pattern: a small `scripts/size-report.mjs` invoked at the end of the build command (e.g. `"build": "vite build && node scripts/size-report.mjs"`), so the report is never stale.
+- **Verify** the file exists in the output folder before finishing Step 4.
+- **State the totals in the final summary** delivered to the operator: total size in human-readable form and bytes (e.g. "Total built output: 1.2 MB (1,234,567 bytes) across 42 files"), the per-type breakdown, the fact that `size-report.json` is included in the deploy folder and reachable at `/size-report.json` once published, and the exact deploy folder relative to the project root to use as the Static Deployment public directory.
+
 ## Schema (JSON-LD)
 
 Emit one `<script type="application/ld+json">` block per schema object. All
@@ -1094,6 +1136,7 @@ The build runs in five sequential steps. Each step has a defined input, action, 
 - `robots.txt` per §SEO › Site-wide files
 - `sitemap.xml` per §SEO › Site-wide files
 - `llms.txt` per §SEO › Site-wide files
+- `size-report.json` per §SEO › Site-wide files (measured over the final built output; must be regenerated if the build tool cleans the output folder on rebuild)
 
 Wire the following into every page's `<head>` and layout exactly as sourced from `build/context.json`:
 
@@ -1102,7 +1145,7 @@ Wire the following into every page's `<head>` and layout exactly as sourced from
 - **brand color** — the hex value from the build sheet; applied as the primary accent color
 - **Refill, Transfer, and Patient Portal CTAs** — wired to their respective portal URLs from the build sheet; present in the sticky header on every page per §Required sections
 
-**Exit criteria:** Every page in `/build/page-plan.json` has a corresponding generated HTML file. `robots.txt`, `sitemap.xml`, and `llms.txt` exist at the site root. All JSON-LD blocks are present and syntactically valid. No placeholder text appears in any output file.
+**Exit criteria:** Every page in `/build/page-plan.json` has a corresponding generated HTML file. `robots.txt`, `sitemap.xml`, `llms.txt`, AND `size-report.json` exist at the site root of the built output folder. `size-report.json` parses as valid JSON with the exact shape defined in §SEO › Site-wide files › `size-report.json` (`generatedAt`, `outputDir`, `totalBytes`, `totalFiles`, `byType` with the six categories). All JSON-LD blocks are present and syntactically valid. No placeholder text appears in any output file.
 
 **Failure mode:** If a required field is absent from `build/context.json`, omit the corresponding section or element (see §Section omission rule). Log every omission to `/build/log.md`. Do not stub, invent, or hardcode values — no silent fallback.
 
@@ -1181,6 +1224,8 @@ SEO + SCHEMA
 [ ] No carousel hero, no exit-intent modals, no auto-play media, no "Click here" / "Learn more" CTA copy
 [ ] /privacy/ page exists with HIPAA Notice of Privacy Practices; linked from footer of every page
 [ ] Cookie consent placeholder present (external drop-in widget target); GA consent-mode default set to denied
+[ ] size-report.json exists at the root of the built output with generatedAt, outputDir, totalBytes, totalFiles, and byType (html/css/js/images/fonts/other)
+[ ] Final summary states total built size (human + bytes), per-type breakdown, size-report.json path, and the exact Static Deployment public directory
 [ ] CSS: box-sizing: border-box reset; >= 1 @media query; body font-size >= 16px on mobile; no horizontal scroll at 320px
 [ ] Security headers: HSTS (2yr+), CSP with frame-ancestors, X-Content-Type-Options nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy denying camera/mic/geo/payment
 [ ] Lighthouse mobile: Performance >= 85; LCP <= 2.5s; CLS <= 0.1; FCP <= 1.8s; Speed Index <= 3.4s; TBT <= 200ms — logged per page

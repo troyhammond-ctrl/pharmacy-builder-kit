@@ -151,6 +151,19 @@ Findings reference: `schema.parse-fail`, `schema.context-missing`, `schema.type-
 - Ampersands in URLs escaped as `&amp;`.
 - Priority scheme: 1.0 home, 0.8 top-level, 0.6 deep.
 
+**`size-report.json`** — fetch `<base>/size-report.json`. Validate:
+
+- HTTP 200, MIME `application/json`.
+- Parses as valid JSON.
+- Exact top-level keys: `generatedAt`, `outputDir`, `totalBytes`, `totalFiles`, `byType`. Any extra keys are Minor findings; missing required keys are Important.
+- `generatedAt` is a valid ISO 8601 timestamp within the last 30 days (older = the report is stale from a prior build; Minor).
+- `totalBytes` and `totalFiles` are positive integers.
+- `byType` has exactly the six categories: `html`, `css`, `js`, `images`, `fonts`, `other`. Each category has `{ bytes: <int>, files: <int> }`.
+- Sanity check: `sum(byType[*].bytes) ≈ totalBytes` (allow ±1 KB drift for the size-report.json file itself); `sum(byType[*].files) === totalFiles`.
+- Human-scale sanity check: `totalBytes` between 100 KB and 15 MB for a typical pharmacy site. Below 100 KB is likely a broken build (Critical); above 15 MB warrants investigation into image compression (Important).
+
+Findings reference: `sizereport.missing`, `sizereport.parse-fail`, `sizereport.missing-key`, `sizereport.stale`, `sizereport.byType-mismatch`, `sizereport.suspicious-size`.
+
 **`llms.txt`** — fetch `<base>/llms.txt`. Validate per the [llms.txt spec](https://llmstxt.org):
 
 - HTTP 200, plain text, UTF-8, LF line endings.
