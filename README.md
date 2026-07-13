@@ -14,7 +14,8 @@ Both skills are stack-agnostic — they tell the agent what the output must sati
 | Path | Purpose |
 |---|---|
 | `SKILL.md` | The **builder** skill. Paste into Replit Agent as a system prompt or commit into your Replit project as a skill. |
-| `QA-SKILL.md` | The **auditor** skill. Run against a built site (URL or path) for an independent second-opinion audit covering pages, a11y, SEO, schema, robots/sitemap/llms, mobile UX, conversion, content guardrails, voice, visual quality, performance, and security. |
+| `WEBSITE-MIGRATION-SKILL.md` | The **migrator** skill. Same output contract as `SKILL.md` with migration-tuned triggers. Regenerate via `tools/refresh-migration-skill.sh` after editing `SKILL.md`. |
+| `QA-SKILL.md` | The **auditor** skill. Run against a built site (URL or path) for an independent second-opinion audit covering pages, a11y, SEO, schema, robots/sitemap/llms/size-report, mobile UX, conversion, content guardrails, voice, visual quality, performance, security, and HIPAA compliance. |
 | `README.md` | This file. |
 | `docs/replit-quickstart.md` | Step-by-step Replit operator guide (import, build, audit, deploy, troubleshoot). |
 | `docs/superpowers/specs/` | Design spec the builder SKILL.md was built from. Authoritative for any future revisions. |
